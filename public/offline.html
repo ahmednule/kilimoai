@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1A7A4A">
+  <title>Offline - Kilimo AI</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #0F1A13;
+      color: #F5F7F2;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+    }
+    .icon {
+      width: 80px;
+      height: 80px;
+      background-color: #1A7A4A;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+    .icon svg {
+      width: 48px;
+      height: 48px;
+      color: #F5F7F2;
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #F5F7F2;
+    }
+    p {
+      font-size: 16px;
+      color: #8A9B8E;
+      max-width: 300px;
+      line-height: 1.5;
+      margin-bottom: 24px;
+    }
+    button {
+      background-color: #D4A843;
+      color: #0F1A13;
+      border: none;
+      padding: 16px 32px;
+      font-size: 16px;
+      font-weight: 600;
+      border-radius: 12px;
+      cursor: pointer;
+      min-height: 56px;
+      min-width: 200px;
+    }
+    button:active {
+      transform: scale(0.98);
+    }
+    .swahili {
+      margin-top: 32px;
+      padding-top: 32px;
+      border-top: 1px solid #2C3B2E;
+    }
+    .swahili h2 {
+      font-size: 18px;
+      color: #D4A843;
+      margin-bottom: 8px;
+    }
+    .swahili p {
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="icon">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m-3.536-3.536a4 4 0 010-5.656m-7.072 7.072a9 9 0 010-12.728m3.536 3.536a4 4 0 010 5.656" />
+    </svg>
+  </div>
+  
+  <h1>You&apos;re Offline</h1>
+  <p>Please check your internet connection and try again.</p>
+  
+  <button onclick="window.location.reload()">Try Again</button>
+  
+  <div class="swahili">
+    <h2>Uko Nje ya Mtandao</h2>
+    <p>Tafadhali angalia muunganisho wako wa intaneti na ujaribu tena.</p>
+  </div>
+</body>
+</html>
