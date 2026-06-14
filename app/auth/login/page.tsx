@@ -18,12 +18,15 @@ const UI_TEXT = {
     hidePassword: 'Hide password',
     login: 'Log In',
     loggingIn: 'Logging in...',
+    forgotPassword: 'Forgot password?',
+    forgotComingSoon: 'Password reset is coming soon!',
     googleSignIn: 'Continue with Google',
     orContinue: 'or continue with',
     noAccount: "Don't have an account?",
     signUp: 'Sign Up',
     googleComingSoon: 'Google sign-in is coming soon!',
-    allRights: 'All rights reserved.',
+    fillBoth: 'Please enter both email and password',
+    loginFailed: 'Login failed',
   },
   sw: {
     title: 'Karibu tena',
@@ -35,12 +38,15 @@ const UI_TEXT = {
     hidePassword: 'Ficha nenosiri',
     login: 'Ingia',
     loggingIn: 'Inaingia...',
+    forgotPassword: 'Umesahau nenosiri?',
+    forgotComingSoon: 'Kuweka upya nenosiri kunakuja hivi karibuni!',
     googleSignIn: 'Endelea na Google',
     orContinue: 'au endelea na',
     noAccount: 'Huna akaunti?',
     signUp: 'Jisajili',
     googleComingSoon: 'Kuingia kwa Google kunakuja hivi karibuni!',
-    allRights: 'Haki zote zimehifadhiwa.',
+    fillBoth: 'Tafadhali ingiza barua pepe na nenosiri',
+    loginFailed: 'Imeshindwa kuingia',
   }
 }
 
@@ -64,7 +70,7 @@ export default function LoginPage() {
     setError('')
 
     if (!email.trim() || !password) {
-      setError('Please enter both email and password')
+      setError(t.fillBoth)
       return
     }
 
@@ -75,7 +81,7 @@ export default function LoginPage() {
     if (result.success) {
       router.push('/dashboard')
     } else {
-      setError(result.error || 'Login failed')
+      setError(result.error || t.loginFailed)
     }
   }
 
@@ -132,6 +138,15 @@ export default function LoginPage() {
               {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
+        </div>
+
+        <div className="flex justify-end">
+          <Link
+            href="/auth/forgot-password"
+            className="text-xs text-text-muted hover:text-green-primary transition-colors"
+          >
+            {t.forgotPassword}
+          </Link>
         </div>
 
         <button

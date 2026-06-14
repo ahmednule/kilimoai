@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Eye, EyeOff, Loader2, ChevronsUpDown, Check } from 'lucide-react'
+import { Eye, EyeOff, Loader2, ChevronsUpDown, Check, Sprout, Users } from 'lucide-react'
 import { signup } from '@/lib/auth'
 import { getLanguage, Language } from '@/lib/i18n'
-import { KENYAN_COUNTIES } from '@/lib/counties'
+import { KENYAN_COUNTIES } from '@/lib/constants'
 
 const UI_TEXT = {
   en: {
@@ -20,18 +20,28 @@ const UI_TEXT = {
     confirmPassword: 'Confirm Password',
     county: 'County',
     countyPlaceholder: 'Select your county...',
-    role: 'Role',
+    role: 'I am a',
     roleFarmer: 'Farmer',
-    roleAgent: 'Agent',
+    roleFarmerDesc: 'Growing crops, assessing loan risk',
+    roleAgent: 'Extension Agent',
+    roleAgentDesc: 'Advising farmers, approving loans',
     signup: 'Create Account',
     signingUp: 'Creating account...',
     googleSignIn: 'Continue with Google',
     orContinue: 'or continue with',
     hasAccount: 'Already have an account?',
     logIn: 'Log In',
+    terms: 'By creating an account you agree to our',
+    termsLink: 'Terms of Service',
+    and: 'and',
+    privacyLink: 'Privacy Policy',
     googleComingSoon: 'Google sign-in is coming soon!',
     passwordsNoMatch: 'Passwords do not match',
     fillAll: 'Please fill in all fields',
+    passwordTooShort: 'Password must be at least 6 characters',
+    passwordWeak: 'Weak — add numbers or symbols',
+    passwordMedium: 'Fair — almost there',
+    passwordStrong: 'Strong password',
   },
   sw: {
     title: 'Fungua akaunti yako',
@@ -44,19 +54,44 @@ const UI_TEXT = {
     confirmPassword: 'Thibitisha Nenosiri',
     county: 'Kaunti',
     countyPlaceholder: 'Chagua kaunti yako...',
-    role: 'Jukumu',
+    role: 'Mimi ni',
     roleFarmer: 'Mkulima',
-    roleAgent: 'Wakala',
+    roleFarmerDesc: 'Kulima mazao, kutathmini hatari ya mkopo',
+    roleAgent: 'Wakala wa Kilimo',
+    roleAgentDesc: 'Kushauri wakulima, kuidhinisha mikopo',
     signup: 'Fungua Akaunti',
     signingUp: 'Inafungua akaunti...',
     googleSignIn: 'Endelea na Google',
     orContinue: 'au endelea na',
     hasAccount: 'Tayari una akaunti?',
     logIn: 'Ingia',
+    terms: 'Kwa kufungua akaunti unakubali',
+    termsLink: 'Masharti ya Huduma',
+    and: 'na',
+    privacyLink: 'Sera ya Faragha',
     googleComingSoon: 'Kuingia kwa Google kunakuja hivi karibuni!',
     passwordsNoMatch: 'Nenosiri hayalingani',
     fillAll: 'Tafadhali jaza sehemu zote',
+    passwordTooShort: 'Nenosiri lazima liwe na angalau herufi 6',
+    passwordWeak: 'Dhaifu — ongeza nambari au alama',
+    passwordMedium: 'Wastani — karibu',
+    passwordStrong: 'Nenosiri imara',
   }
+}
+
+type PasswordStrength = 'none' | 'weak' | 'medium' | 'strong'
+
+function getPasswordStrength(pw: string): PasswordStrength {
+  if (!pw) return 'none'
+  if (pw.length < 6) return 'weak'
+  const hasUpper = /[A-Z]/.test(pw)
+  const hasLower = /[a-z]/.test(pw)
+  const hasNumber = /\d/.test(pw)
+  const hasSymbol = /[^A-Za-z0-9]/.test(pw)
+  const score = [hasUpper, hasLower, hasNumber, hasSymbol].filter(Boolean).length
+  if (pw.length >= 8 && score >= 3) return 'strong'
+  if (pw.length >= 6 && score >= 2) return 'medium'
+  return 'weak'
 }
 
 export default function SignupPage() {
@@ -80,6 +115,9 @@ export default function SignupPage() {
 
   const t = UI_TEXT[lang]
 
+  const pwStrength = useMemo(() => getPasswordStrength(password), [password])
+  const strengthColor = pwStrength === 'strong' ? 'bg-green-500' : pwStrength === 'medium' ? 'bg-gold-harvest' : pwStrength === 'weak' ? 'bg-red-500' : 'bg-border-subtle'
+
   const filteredCounties = KENYAN_COUNTIES.filter((c: string) =>
     c.toLowerCase().includes(countySearch.toLowerCase())
   )
@@ -93,17 +131,24 @@ export default function SignupPage() {
       return
     }
 
+    if (password.length < 6) {
+      setError(t.passwordTooShort)
+      return
+    }
+
     if (password !== confirmPw) {
       setError(t.passwordsNoMatch)
       return
     }
 
     setLoading(true)
-    const result = signup(name.trim(), email.trim(), county, role)
+    const result = signup(name.trim(), email.trim(), password, county, role)
     setLoading(false)
 
     if (result.success) {
       router.push('/dashboard')
+    } else {
+      setError(result.error || t.fillAll)
     }
   }
 
@@ -179,6 +224,20 @@ export default function SignupPage() {
               {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
+          {password && (
+            <div className="mt-2 space-y-1">
+              <div className="flex gap-1">
+                <div className={`h-1 flex-1 rounded-full transition-colors ${pwStrength === 'weak' || pwStrength === 'medium' || pwStrength === 'strong' ? 'bg-red-500' : 'bg-border-subtle'}`} />
+                <div className={`h-1 flex-1 rounded-full transition-colors ${pwStrength === 'medium' || pwStrength === 'strong' ? 'bg-gold-harvest' : 'bg-border-subtle'}`} />
+                <div className={`h-1 flex-1 rounded-full transition-colors ${pwStrength === 'strong' ? 'bg-green-500' : 'bg-border-subtle'}`} />
+              </div>
+              <p className={`text-xs ${
+                pwStrength === 'strong' ? 'text-green-500' : pwStrength === 'medium' ? 'text-gold-harvest' : 'text-text-muted'
+              }`}>
+                {pwStrength === 'strong' ? t.passwordStrong : pwStrength === 'medium' ? t.passwordMedium : t.passwordWeak}
+              </p>
+            </div>
+          )}
         </div>
 
         <div>
@@ -251,28 +310,32 @@ export default function SignupPage() {
           <label className="block text-sm font-medium text-text-secondary mb-1.5">
             {t.role}
           </label>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
               onClick={() => setRole('farmer')}
-              className={`h-11 rounded-lg border text-sm font-medium transition-all ${
+              className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
                 role === 'farmer'
-                  ? 'bg-green-primary/10 border-green-primary/40 text-green-primary'
+                  ? 'bg-green-primary/10 border-green-primary/40 text-green-primary shadow-lg shadow-green-primary/10'
                   : 'border-border-subtle text-text-muted hover:border-green-primary/30 hover:text-text-primary'
               }`}
             >
-              {t.roleFarmer}
+              <Sprout className="w-6 h-6" />
+              <span className="text-sm font-semibold">{t.roleFarmer}</span>
+              <span className="text-xs text-text-muted leading-tight text-center">{t.roleFarmerDesc}</span>
             </button>
             <button
               type="button"
               onClick={() => setRole('agent')}
-              className={`h-11 rounded-lg border text-sm font-medium transition-all ${
+              className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
                 role === 'agent'
-                  ? 'bg-green-primary/10 border-green-primary/40 text-green-primary'
+                  ? 'bg-green-primary/10 border-green-primary/40 text-green-primary shadow-lg shadow-green-primary/10'
                   : 'border-border-subtle text-text-muted hover:border-green-primary/30 hover:text-text-primary'
               }`}
             >
-              {t.roleAgent}
+              <Users className="w-6 h-6" />
+              <span className="text-sm font-semibold">{t.roleAgent}</span>
+              <span className="text-xs text-text-muted leading-tight text-center">{t.roleAgentDesc}</span>
             </button>
           </div>
         </div>
@@ -313,6 +376,13 @@ export default function SignupPage() {
         <Link href="/auth/login" className="text-green-primary hover:underline font-medium">
           {t.logIn}
         </Link>
+      </p>
+
+      <p className="mt-6 text-center text-xs text-text-muted leading-relaxed">
+        {t.terms}{' '}
+        <Link href="/terms" className="text-green-primary hover:underline">{t.termsLink}</Link>{' '}
+        {t.and}{' '}
+        <Link href="/privacy" className="text-green-primary hover:underline">{t.privacyLink}</Link>
       </p>
     </>
   )
