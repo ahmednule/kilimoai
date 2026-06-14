@@ -1,9 +1,9 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ArrowRight, TrendingDown, Users, AlertTriangle, Sprout, MessageSquare, Cloud, BarChart3, Camera, Languages, Wifi } from 'lucide-react'
+import { ArrowRight, TrendingDown, Users, AlertTriangle, Sprout, MessageSquare, Cloud, BarChart3, Camera, Languages, Wifi, LogIn, UserPlus } from 'lucide-react'
 
 type Language = 'en' | 'sw'
 
@@ -11,7 +11,7 @@ const UI_TEXT = {
   en: {
     heroTitle: "Jua Ukweli Kabla ya Kukopa",
     heroSubtitle: "Know the truth before you borrow",
-    heroDescription: "AI-powered farm financial intelligence for Kenyan smallholder farmers. Real weather data. Real market prices. Real risk assessment — in Swahili.",
+    heroDescription: "AI-powered farm financial intelligence for Kenyan smallholder farmers. Real weather data. Real market prices. Real risk assessment â€” in Swahili.",
     ctaPrimary: "Check My Loan Risk",
     ctaSecondary: "See How It Works",
     stat1: "30% of farm loans default due to poor timing",
@@ -23,7 +23,7 @@ const UI_TEXT = {
     step2Title: "We pull real data",
     step2Desc: "Rainfall forecasts, yield benchmarks, market prices",
     step3Title: "Get your honest verdict",
-    step3Desc: "Best case, expected, worst case — in Swahili or English",
+    step3Desc: "Best case, expected, worst case â€” in Swahili or English",
     featuresTitle: "Built for Kenyan Farmers",
     feature1Title: "Scenario Analysis",
     feature1Desc: "See all three outcomes, not just the optimistic one",
@@ -44,13 +44,15 @@ const UI_TEXT = {
     ctaTitle: "Ready to borrow right?",
     ctaSubtitle: "It takes 3 minutes. No registration required.",
     ctaButton: "Start Your Assessment",
-    footerTagline: "Know the truth before you borrow",
+footerTagline: "Know the truth before you borrow",
     footerCredit: "Built for the Kenya AI Challenge 2026 | Mercy Corps AgriFin",
+navLogin: "Log In",
+    navSignup: "Sign Up",
   },
   sw: {
     heroTitle: "Jua Ukweli Kabla ya Kukopa",
     heroSubtitle: "Fahamu ukweli kabla ya kukopa",
-    heroDescription: "Akili ya fedha za kilimo inayoendeshwa na AI kwa wakulima wadogo wa Kenya. Data halisi ya hali ya hewa. Bei halisi za soko. Tathmini halisi ya hatari — kwa Kiswahili.",
+    heroDescription: "Akili ya fedha za kilimo inayoendeshwa na AI kwa wakulima wadogo wa Kenya. Data halisi ya hali ya hewa. Bei halisi za soko. Tathmini halisi ya hatari â€” kwa Kiswahili.",
     ctaPrimary: "Angalia Hatari ya Mkopo",
     ctaSecondary: "Ona Jinsi Inavyofanya Kazi",
     stat1: "30% ya mikopo ya kilimo inashindwa kulipwa kutokana na wakati mbaya",
@@ -62,7 +64,7 @@ const UI_TEXT = {
     step2Title: "Tunapata data halisi",
     step2Desc: "Utabiri wa mvua, viwango vya mavuno, bei za soko",
     step3Title: "Pata hukumu yako ya kweli",
-    step3Desc: "Hali bora, inayotarajiwa, mbaya zaidi — kwa Kiswahili au Kiingereza",
+    step3Desc: "Hali bora, inayotarajiwa, mbaya zaidi â€” kwa Kiswahili au Kiingereza",
     featuresTitle: "Imejengwa kwa Wakulima wa Kenya",
     feature1Title: "Uchambuzi wa Hali",
     feature1Desc: "Ona matokeo yote matatu, si ya matumaini tu",
@@ -85,6 +87,8 @@ const UI_TEXT = {
     ctaButton: "Anza Tathmini Yako",
     footerTagline: "Jua ukweli kabla ya kukopa",
     footerCredit: "Imejengwa kwa Changamoto ya AI ya Kenya 2026 | Mercy Corps AgriFin",
+    navLogin: "Ingia",
+    navSignup: "Jisajili",
   }
 }
 
@@ -166,16 +170,27 @@ export default function LandingPage() {
       {/* Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-dark-base/80 backdrop-blur-md border-b border-border-subtle">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <Link href="/" className="flex items-center gap-2 group">
+          <div className="flex items-center justify-between h-16 gap-3">
+            <Link href="/" className="flex items-center gap-2 group shrink-0">
               <div className="w-10 h-10 rounded-xl bg-green-primary flex items-center justify-center group-hover:bg-green-light transition-colors">
                 <Sprout className="w-6 h-6 text-text-primary" />
               </div>
-              <span className="font-serif text-xl font-semibold text-text-primary">
+              <span className="hidden sm:inline font-serif text-xl font-semibold text-text-primary">
                 Kilimo AI
               </span>
             </Link>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Link href="/auth/login" className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors rounded-lg hover:bg-text-primary/5">
+                <LogIn className="w-4 h-4" />
+                <span className="hidden xs:inline">{t.navLogin}</span>
+              </Link>
+              <Link href="/auth/signup" className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-green-primary hover:bg-green-light text-text-primary transition-colors rounded-lg">
+                <UserPlus className="w-4 h-4" />
+                <span className="hidden xs:inline">{t.navSignup}</span>
+              </Link>
+              <div className="w-px h-5 bg-border-subtle mx-0.5 hidden xs:block" />
             <LanguageToggle language={language} onChange={handleLanguageChange} />
+            </div>
           </div>
         </div>
       </nav>
