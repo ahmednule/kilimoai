@@ -3,8 +3,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Eye, EyeOff, Loader2, ChevronsUpDown, Check, Sprout, Users } from 'lucide-react'
-import { signup } from '@/lib/auth'
+import { Eye, EyeOff, Loader2, ChevronsUpDown, Check, Sprout, Users, Store, ShoppingCart, Shield } from 'lucide-react'
+import { signup, UserRole } from '@/lib/auth'
 import { getLanguage, Language } from '@/lib/i18n'
 import { KENYAN_COUNTIES } from '@/lib/constants'
 
@@ -25,6 +25,12 @@ const UI_TEXT = {
     roleFarmerDesc: 'Growing crops, assessing loan risk',
     roleAgent: 'Extension Agent',
     roleAgentDesc: 'Advising farmers, approving loans',
+    roleLender: 'Lender',
+    roleLenderDesc: 'Review applications, fund loans',
+    roleBuyer: 'Buyer',
+    roleBuyerDesc: 'Purchase farm produce, trade',
+    roleAdmin: 'Admin',
+    roleAdminDesc: 'Manage platform, users & analytics',
     signup: 'Create Account',
     signingUp: 'Creating account...',
     googleSignIn: 'Continue with Google',
@@ -59,6 +65,12 @@ const UI_TEXT = {
     roleFarmerDesc: 'Kulima mazao, kutathmini hatari ya mkopo',
     roleAgent: 'Wakala wa Kilimo',
     roleAgentDesc: 'Kushauri wakulima, kuidhinisha mikopo',
+    roleLender: 'Mkopeshaji',
+    roleLenderDesc: 'Pitia maombi, fadhili mikopo',
+    roleBuyer: 'Mnunuzi',
+    roleBuyerDesc: 'Nunua mazao, fanya biashara',
+    roleAdmin: 'Msimamizi',
+    roleAdminDesc: 'Simamia jukwaa, watumiaji na takwimu',
     signup: 'Fungua Akaunti',
     signingUp: 'Inafungua akaunti...',
     googleSignIn: 'Endelea na Google',
@@ -102,7 +114,7 @@ export default function SignupPage() {
   const [password, setPassword] = useState('')
   const [confirmPw, setConfirmPw] = useState('')
   const [county, setCounty] = useState('')
-  const [role, setRole] = useState<'farmer' | 'agent'>('farmer')
+  const [role, setRole] = useState<UserRole>('farmer')
   const [showPw, setShowPw] = useState(false)
   const [countyOpen, setCountyOpen] = useState(false)
   const [countySearch, setCountySearch] = useState('')
@@ -187,8 +199,14 @@ const handleSubmit = async (e: React.FormEvent) => {
     }
     localStorage.setItem('kilimo-profile-partial', JSON.stringify(partial))
     router.push('/onboarding')
-  } else {
+  } else if (role === 'lender') {
     router.push('/lender')
+  } else if (role === 'agent') {
+    router.push('/agent')
+  } else if (role === 'buyer') {
+    router.push('/buyer')
+  } else if (role === 'admin') {
+    router.push('/admin')
   }
 }
   const handleGoogleClick = () => {
@@ -350,32 +368,28 @@ const handleSubmit = async (e: React.FormEvent) => {
             {t.role}
           </label>
           <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => setRole('farmer')}
-              className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                role === 'farmer'
-                  ? 'bg-green-primary/10 border-green-primary/40 text-green-primary shadow-lg shadow-green-primary/10'
-                  : 'border-border-subtle text-text-muted hover:border-green-primary/30 hover:text-text-primary'
-              }`}
-            >
-              <Sprout className="w-6 h-6" />
-              <span className="text-sm font-semibold">{t.roleFarmer}</span>
-              <span className="text-xs text-text-muted leading-tight text-center">{t.roleFarmerDesc}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setRole('agent')}
-              className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                role === 'agent'
-                  ? 'bg-green-primary/10 border-green-primary/40 text-green-primary shadow-lg shadow-green-primary/10'
-                  : 'border-border-subtle text-text-muted hover:border-green-primary/30 hover:text-text-primary'
-              }`}
-            >
-              <Users className="w-6 h-6" />
-              <span className="text-sm font-semibold">{t.roleAgent}</span>
-              <span className="text-xs text-text-muted leading-tight text-center">{t.roleAgentDesc}</span>
-            </button>
+            {([
+              { value: 'farmer' as UserRole, icon: Sprout, label: t.roleFarmer, desc: t.roleFarmerDesc },
+              { value: 'agent' as UserRole, icon: Users, label: t.roleAgent, desc: t.roleAgentDesc },
+              { value: 'lender' as UserRole, icon: Store, label: t.roleLender, desc: t.roleLenderDesc },
+              { value: 'buyer' as UserRole, icon: ShoppingCart, label: t.roleBuyer, desc: t.roleBuyerDesc },
+              { value: 'admin' as UserRole, icon: Shield, label: t.roleAdmin, desc: t.roleAdminDesc },
+            ]).map(({ value, icon: Icon, label, desc }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setRole(value)}
+                className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                  role === value
+                    ? 'bg-green-primary/10 border-green-primary/40 text-green-primary shadow-lg shadow-green-primary/10'
+                    : 'border-border-subtle text-text-muted hover:border-green-primary/30 hover:text-text-primary'
+                }`}
+              >
+                <Icon className="w-6 h-6" />
+                <span className="text-sm font-semibold">{label}</span>
+                <span className="text-xs text-text-muted leading-tight text-center">{desc}</span>
+              </button>
+            ))}
           </div>
         </div>
 
