@@ -3,19 +3,19 @@
 import { useState, useEffect, ReactNode } from 'react'
 import Link from 'next/link'
 import { motion, useScroll } from 'framer-motion'
-import { Sprout, LogIn, UserPlus } from 'lucide-react'
+import { Sprout, LogIn, UserPlus, ArrowRight } from 'lucide-react'
 import { LanguageContext, LanguageToggle, Language } from '@/components/marketing/shared'
 
 const NAV_TEXT = {
   en: {
-    login: 'Log In',
-    signup: 'Sign Up',
+    login: 'Sign In',
+    signup: 'Start Free',
     tagline: 'Know the truth before you borrow',
     credit: 'Built for the Kenya AI Challenge 2026 | Mercy Corps AgriFin',
   },
   sw: {
     login: 'Ingia',
-    signup: 'Jisajili',
+    signup: 'Anza Bure',
     tagline: 'Jua ukweli kabla ya kukopa',
     credit: 'Imejengwa kwa Changamoto ya AI ya Kenya 2026 | Mercy Corps AgriFin',
   },
@@ -70,18 +70,19 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
               </Link>
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <Link
-                  href="/auth/login"
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors rounded-lg hover:bg-text-primary/5"
-                >
-                  <LogIn className="w-4 h-4" />
-                  <span className="hidden xs:inline">{t.login}</span>
-                </Link>
-                <Link
                   href="/auth/signup"
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-green-primary hover:bg-green-light text-text-primary transition-colors rounded-lg"
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold bg-gold-harvest text-dark-base rounded-xl hover:bg-gold-harvest/90 transition-all shadow-lg shadow-gold-harvest/10"
                 >
                   <UserPlus className="w-4 h-4" />
                   <span className="hidden xs:inline">{t.signup}</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+                <Link
+                  href="/auth/login"
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors rounded-xl hover:bg-text-primary/5"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span className="hidden xs:inline">{t.login}</span>
                 </Link>
                 <div className="w-px h-5 bg-border-subtle mx-0.5 hidden xs:block" />
                 <LanguageToggle language={language} onChange={handleLanguageChange} />

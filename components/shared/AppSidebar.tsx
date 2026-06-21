@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import {
   Sprout, MessageSquare, History, Building2, Users, Bug, UserCog, LogOut,
   LayoutDashboard, ClipboardCheck, ShieldCheck, Bot, ShoppingCart, Store,
-  Shield, BarChart3, Settings, FileText, Package,
+  Shield, BarChart3, Settings, FileText, Package, CalendarCheck,
 } from 'lucide-react'
 import { FarmerProfile, Language, RiskLevel } from '@/lib/types'
 import { getSession, type UserRole } from '@/lib/auth'
@@ -25,12 +25,12 @@ const FARMER_NAV = [
 ]
 
 const AGENT_NAV = [
-  { label: 'Dashboard',      icon: LayoutDashboard,   href: '/agent'            },
-  { label: 'Assessments',    icon: ClipboardCheck,    href: '/agent/assessments' },
-  { label: 'Farmers',       icon: ShieldCheck,       href: '/agent/farmers'     },
-  { label: 'AI Assistant',  icon: Bot,                href: '/chatbot'   },
-  { label: 'Loan products', icon: Building2,          href: '/loans'            },
-  { label: 'Profile',        icon: UserCog,            href: '/profile'          },
+  { label: 'Dashboard',      icon: LayoutDashboard,   href: '/agent/dashboard' },
+  { label: 'Verify Farmers', icon: ClipboardCheck,    href: '/agent/verify'    },
+  { label: 'Flagged',        icon: ShieldCheck,       href: '/agent/flagged'   },
+  { label: 'Schedule',       icon: CalendarCheck,     href: '/agent/schedule'  },
+  { label: 'AI Assistant',  icon: Bot,                href: '/chatbot'         },
+  { label: 'Profile',        icon: UserCog,            href: '/profile'         },
 ]
 
 const LENDER_NAV = [
