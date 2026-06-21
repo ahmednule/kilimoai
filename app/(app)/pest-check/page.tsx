@@ -5,6 +5,17 @@ import { Bug, Upload, Scan, Sprout, CheckCircle2, ImageIcon, Camera, Plus } from
 import { Language } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
+interface PestScanRecord {
+  id: string
+  pest: string
+  confidence: number
+  recommendation: string
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'UNKNOWN'
+  date: string
+  crop: string | null
+  location: string | null
+}
+
 const PESTS = [
   { en: 'Fall Armyworm',       sw: 'Mnyau'  },
   { en: 'Maize Stem Borer',    sw: 'Kidomo wa Mahindi' },
@@ -18,35 +29,6 @@ const PESTS = [
   { en: 'Coffee Berry Borer', sw: 'Kidomo cha Kahawa' },
 ]
 
-const HISTORIC_RECORDS = [
-  {
-    name: { en: 'Fall Armyworm', sw: 'Mnyau' },
-    date: '24 March 2026',
-    confidence: 87,
-    location: 'Nyeri',
-    crop: 'Maize',
-    status: { en: 'Confirmed', sw: 'Imethibitishwa' } as Record<string,string>,
-    recommendation: {
-      en: 'Apply Emamectin benzoate (0.5 L/acre) immediately. Neem-based alternatives also effective.',
-      sw: 'Tumia Emamectin benzoate (0.5 L/ekari) mara moja. Mbadala ya neem pia inafaa.',
-    },
-    imageUrl: null,
-  },
-  {
-    name: { en: 'Striga (Uyuyu)', sw: 'Uyuyu' },
-    date: '12 Feb 2026',
-    confidence: 72,
-    location: 'Kakamega',
-    crop: 'Maize',
-    status: { en: 'Removed', sw: 'Imeondolewa' },
-    recommendation: {
-      en: 'Push-pull technology with Desmodium. Apply StrigAway herbicide as a preventive measure.',
-      sw: 'Teknolojia ya kusukuma-kwvuta na Desmodium. Tumia dawa ya StrigAway kwa kuzuia.',
-    },
-    imageUrl: null,
-  },
-]
-
 export default function PestCheckPage() {
   const [mounted, setMounted] = useState(false)
   const [language, setLanguage] = useState<Language>('en')
@@ -57,9 +39,12 @@ export default function PestCheckPage() {
     pest: string
     confidence: number
     recommendation: string
-    severity: 'LOW' | 'MEDIUM' | 'HIGH'
+    severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'UNKNOWN'
   } | null>(null)
+  const [scanError, setScanError] = useState<string | null>(null)
   const [showCamera, setShowCamera] = useState(false)
+  const [scanHistory, setScanHistory] = useState<PestScanRecord[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -114,37 +99,95 @@ export default function PestCheckPage() {
     }
   }
 
-  const handleScan = () => {
+  const handleScan = async () => {
     setIsScanning(true)
     setScanResult(null)
+    setScanError(null)
 
-    setTimeout(() => {
-      const pestOptions = [
-        { pest: 'Fall Armyworm', confidence: 87, recommendation: 'Apply Emamectin benzoate (0.5 L/acre) immediately. Neem oil as organic alternative.', severity: 'HIGH' },
-        { pest: 'Maize Stem Borer', confidence: 73, recommendation: 'Apply Bt-based insecticide. Destroy infected stalks after harvest.', severity: 'MEDIUM' },
-        { pest: 'Aphids', confidence: 65, recommendation: 'Spray neem oil solution (1%). Release ladybugs as biological control.', severity: 'LOW' },
-        { pest: 'Leaf Rust', confidence: 81, recommendation: 'Use propiconazole-based fungicide. Remove infected leaves.', severity: 'HIGH' },
-      ][Math.floor(Math.random() * 4)]
+    try {
+      const res = await fetch('/api/pest-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: selectedImage }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Scan failed')
+      }
 
       setScanResult({
-        pest: pestOptions.pest,
-        confidence: pestOptions.confidence,
-        recommendation: pestOptions.recommendation,
-        severity: pestOptions.severity as 'LOW' | 'MEDIUM' | 'HIGH',
+        pest: data.pest,
+        confidence: data.confidence,
+        recommendation: data.recommendation,
+        severity: data.severity,
       })
+
+      // Refresh history after successful scan
+      fetchHistory()
+    } catch (err) {
+      setScanError(err instanceof Error ? err.message : 'Scan failed')
+    } finally {
       setIsScanning(false)
-    }, 2000)
+    }
   }
 
   const resetScan = () => {
     setSelectedImage(null)
     setScanResult(null)
+    setScanError(null)
   }
 
   const severityColor = (sev: string) =>
     sev === 'HIGH' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
     sev === 'MEDIUM' ? 'bg-yellow-primary/10 text-yellow-400 border-yellow-primary/20' :
-    'bg-green-primary/10 text-green-400 border-green-primary/20'
+    sev === 'LOW' ? 'bg-green-primary/10 text-green-400 border-green-primary/20' :
+    'bg-dark-base text-text-muted border-border-subtle'
+
+  const handleDownload = () => {
+    if (!scanResult) return
+    const text = [
+      `Pest Check Report`,
+      `Date: ${new Date().toLocaleDateString()}`,
+      ``,
+      `Pest/Disease: ${scanResult.pest}`,
+      `Confidence: ${scanResult.confidence}%`,
+      `Severity: ${scanResult.severity}`,
+      ``,
+      `Recommendation:`,
+      scanResult.recommendation,
+    ].join('\n')
+
+    const blob = new Blob([text], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `pest-report-${Date.now()}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const fetchHistory = async () => {
+    setHistoryLoading(true)
+    try {
+      const res = await fetch('/api/pest-check/history')
+      const data = await res.json()
+      if (data.success) {
+        setScanHistory(data.scans)
+      }
+    } catch (err) {
+      // silently fail, history not critical
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'history') {
+      fetchHistory()
+    }
+  }, [activeTab])
 
   if (!mounted) return null
 
@@ -286,6 +329,26 @@ export default function PestCheckPage() {
                 </div>
               )}
 
+              {scanError && !isScanning && (
+                <div className="flex flex-col items-center justify-center h-full gap-3 py-12 px-4">
+                  <div className="p-3 rounded-full bg-red-500/10">
+                    <Bug className="w-8 h-8 text-red-400" />
+                  </div>
+                  <p className="text-sm font-medium text-red-400 text-center">
+                    {language === 'sw' ? 'Hitilafu imetokea' : 'Scan failed'}
+                  </p>
+                  <p className="text-xs text-text-muted text-center leading-relaxed">{scanError}</p>
+                  {selectedImage && (
+                    <button
+                      onClick={handleScan}
+                      className="mt-2 px-4 py-2 bg-dark-base border border-border-subtle rounded-lg text-sm text-text-primary hover:border-green-primary/40 transition-colors"
+                    >
+                      {language === 'sw' ? 'Jaribu tena' : 'Retry'}
+                    </button>
+                  )}
+                </div>
+              )}
+
               {scanResult && (
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
@@ -314,7 +377,10 @@ export default function PestCheckPage() {
                     </p>
                     <p className="text-xs text-text-muted leading-relaxed">{scanResult.recommendation}</p>
                   </div>
-                  <button className="flex items-center gap-1.5 text-xs text-green-400 font-medium hover:text-green-300 transition-colors">
+                  <button
+                    onClick={handleDownload}
+                    className="flex items-center gap-1.5 text-xs text-green-400 font-medium hover:text-green-300 transition-colors"
+                  >
                     <Plus className="w-3 h-3" />
                     {language === 'sw' ? 'Chukua ripoti' : 'Download report'}
                   </button>
@@ -327,34 +393,52 @@ export default function PestCheckPage() {
 
       {activeTab === 'history' && (
         <div className="space-y-3 max-w-2xl">
-          {HISTORIC_RECORDS.map((record, i) => {
-            const rec = record as typeof HISTORIC_RECORDS[number] & { status: Record<string,string> }
+          {scanHistory.length === 0 && !historyLoading && (
+            <div className="bg-dark-mid border border-border-subtle rounded-xl p-8 text-center">
+              <p className="text-sm text-text-muted">
+                {language === 'sw' ? 'Hakuna historia bado. Kagua picha ili kuona hapa.' : 'No history yet. Scan an image to see it here.'}
+              </p>
+            </div>
+          )}
+          {historyLoading && (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-6 h-6 rounded-full border-2 border-green-primary border-t-transparent animate-spin" />
+            </div>
+          )}
+          {scanHistory.map((record) => {
+            const dateStr = new Date(record.date).toLocaleDateString('en-US', {
+              day: 'numeric', month: 'short', year: 'numeric',
+            })
             return (
-              <div key={i} className="bg-dark-mid border border-border-subtle rounded-xl p-4">
+              <div key={record.id} className="bg-dark-mid border border-border-subtle rounded-xl p-4">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-text-primary">
-                      {record.name[language]}
-                    </p>
-                    <p className="text-xs text-text-muted">{record.location}</p>
+                    <p className="text-sm font-semibold text-text-primary">{record.pest}</p>
+                    <p className="text-xs text-text-muted">{record.location || (language === 'sw' ? 'Haijabainishwa' : 'Unspecified')}</p>
                   </div>
                   <span className={cn(
-                    'text-[10px] font-medium px-2 py-0.5 rounded-full',
-                    rec.status[language]==='Imethibitishwa' || rec.status[language]==='Confirmed'
-                      ? 'bg-red-500/10 text-red-400'
-                      : 'bg-green-primary/10 text-green-400'
+                    'text-[10px] font-medium uppercase px-2 py-0.5 rounded-full border',
+                    record.severity === 'HIGH' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                    record.severity === 'MEDIUM' ? 'bg-yellow-primary/10 text-yellow-400 border-yellow-primary/20' :
+                    record.severity === 'LOW' ? 'bg-green-primary/10 text-green-400 border-green-primary/20' :
+                    'bg-dark-base text-text-muted border-border-subtle'
                   )}>
-                    {rec.status[language]}
+                    {record.severity === 'HIGH'
+                      ? (language === 'sw' ? 'HATARI' : 'HIGH')
+                      : record.severity === 'MEDIUM'
+                      ? 'MEDIUM'
+                      : record.severity === 'LOW'
+                      ? 'LOW'
+                      : record.severity}
                   </span>
                 </div>
                 <div className="mt-2 flex items-center gap-3 text-xs text-text-muted">
-                  <span>{record.crop}</span>
+                  {record.crop && <><span>{record.crop}</span><span>&middot;</span></>}
+                  <span>{dateStr}</span>
                   <span>&middot;</span>
-                  <span>{record.date}</span>
-                  <span>&middot;</span>
-                  <span>{language==='sw'?'Uaminifu':'Confidence'}: {record.confidence}%</span>
+                  <span>{language === 'sw' ? 'Uaminifu' : 'Confidence'}: {record.confidence}%</span>
                 </div>
-                <p className="mt-2 text-xs text-text-muted/80 leading-relaxed">{record.recommendation[language]}</p>
+                <p className="mt-2 text-xs text-text-muted/80 leading-relaxed">{record.recommendation}</p>
               </div>
             )
           })}
