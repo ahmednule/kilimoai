@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
-import { login } from '@/lib/auth'
+import { login, getDashboardPath } from '@/lib/auth'
 import { getLanguage, Language } from '@/lib/i18n'
 
 const UI_TEXT = {
@@ -65,7 +65,7 @@ export default function LoginPage() {
 
   const t = UI_TEXT[lang]
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
@@ -75,11 +75,12 @@ export default function LoginPage() {
     }
 
     setLoading(true)
-    const result = login(email.trim(), password)
+    const result = await login(email.trim(), password)
     setLoading(false)
 
     if (result.success) {
-      router.push('/dashboard')
+      const session = JSON.parse(localStorage.getItem('kilimo-session') || '{}')
+      router.push(getDashboardPath(session.role))
     } else {
       setError(result.error || t.loginFailed)
     }

@@ -1,12 +1,18 @@
 export type Language = 'en' | 'sw'
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'UNKNOWN'
 export type Rainfall = 'good' | 'average' | 'poor'
+export type ChatMode = 'assessment' | 'general'
+
+export interface CropEntry {
+  crop: string
+  acres: number
+  isRented: boolean
+}
 
 export interface FarmerProfile {
   name: string
   county: string
-  crop: string
-  acres: number
+  crops: CropEntry[]
   language: Language
 }
 

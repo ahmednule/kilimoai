@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { DM_Sans, Fraunces, JetBrains_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { OfflineIndicator } from '@/components/shared/OfflineIndicator'
+import { ChatBotWrapper } from '@/components/chatbot/ChatBotWrapper'
 import './globals.css'
 
 const dmSans = DM_Sans({ 
@@ -62,7 +63,9 @@ export default function RootLayout({
     <html lang="en" className={`${dmSans.variable} ${fraunces.variable} ${jetbrainsMono.variable} bg-dark-base`}>
       <body className="font-sans antialiased bg-dark-base text-text-primary min-h-screen">
         <div className="grain-overlay" aria-hidden="true" />
-        {children}
+        <ChatBotWrapper>
+          {children}
+        </ChatBotWrapper>
         <OfflineIndicator />
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

@@ -122,36 +122,75 @@ export default function SignupPage() {
     c.toLowerCase().includes(countySearch.toLowerCase())
   )
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
+  // const handleSubmit = (e: React.FormEvent) => {
+  //   e.preventDefault()
+  //   setError('')
 
-    if (!name.trim() || !email.trim() || !password || !confirmPw || !county) {
-      setError(t.fillAll)
-      return
-    }
+  //   if (!name.trim() || !email.trim() || !password || !confirmPw || !county) {
+  //     setError(t.fillAll)
+  //     return
+  //   }
 
-    if (password.length < 6) {
-      setError(t.passwordTooShort)
-      return
-    }
+  //   if (password.length < 6) {
+  //     setError(t.passwordTooShort)
+  //     return
+  //   }
 
-    if (password !== confirmPw) {
-      setError(t.passwordsNoMatch)
-      return
-    }
+  //   if (password !== confirmPw) {
+  //     setError(t.passwordsNoMatch)
+  //     return
+  //   }
 
-    setLoading(true)
-    const result = signup(name.trim(), email.trim(), password, county, role)
-    setLoading(false)
+  //   setLoading(true)
+  //   const result = signup(name.trim(), email.trim(), password, county, role)
+  //   setLoading(false)
 
-    if (result.success) {
-      router.push('/dashboard')
-    } else {
-      setError(result.error || t.fillAll)
-    }
+  //   if (result.success) {
+  //     router.push('/dashboard')
+  //   } else {
+  //     setError(result.error || t.fillAll)
+  //   }
+  // }
+// Replace your existing handleSubmit in app/auth/signup/page.tsx with this:
+
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault()
+  setError('')
+
+  if (!name.trim() || !email.trim() || !password || !confirmPw || !county) {
+    setError(t.fillAll)
+    return
+  }
+  if (password.length < 6) {
+    setError(t.passwordTooShort)
+    return
+  }
+  if (password !== confirmPw) {
+    setError(t.passwordsNoMatch)
+    return
   }
 
+  setLoading(true)
+  const result = await signup(name.trim(), email.trim(), password, county, role)
+  setLoading(false)
+
+  if (!result.success) {
+    setError(result.error || t.fillAll)
+    return
+  }
+
+  if (role === 'farmer') {
+    const partial = {
+      name:    name.trim(),
+      county,
+      language: lang,
+    }
+    localStorage.setItem('kilimo-profile-partial', JSON.stringify(partial))
+    router.push('/onboarding')
+  } else {
+    router.push('/lender')
+  }
+}
   const handleGoogleClick = () => {
     alert(lang === 'sw' ? 'Kuingia kwa Google kunakuja hivi karibuni!' : 'Google sign-in is coming soon!')
   }

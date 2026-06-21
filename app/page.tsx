@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowRight, TrendingDown, Users, AlertTriangle, Sprout, MessageSquare, Cloud, BarChart3, Camera, Languages, Wifi, LogIn, UserPlus } from 'lucide-react'
+import { FabButton } from '@/components/chatbot/FabButton'
 
 type Language = 'en' | 'sw'
 
@@ -402,6 +403,7 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+      <FabButton />
     </main>
   )
 }
