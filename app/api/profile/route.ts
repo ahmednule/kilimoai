@@ -36,6 +36,8 @@ export async function GET(req: NextRequest) {
         success: true,
         profile: {
           name: props.name,
+          email: user.email,
+          role: user.role,
           county: props.county,
           crops: safeParseJson(props.crops, []),
           language: props.language || 'en',
@@ -47,7 +49,9 @@ export async function GET(req: NextRequest) {
       success: true,
       profile: {
         name: user.name,
-        county: user.county,
+        email: user.email,
+        role: user.role,
+        county: user.county || '',
         crops: [],
         language: 'en',
       },
@@ -73,7 +77,7 @@ export async function PUT(req: NextRequest) {
 
     const { name, county, crops, language } = await req.json()
 
-    if (!name || !county || !crops || !Array.isArray(crops) || crops.length === 0) {
+    if (!name || !county || !crops || !Array.isArray(crops)) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 })
     }
 

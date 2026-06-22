@@ -95,6 +95,12 @@ export interface LoanApplication {
   riskScore: number
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'COUNTERED'
   appliedAt: string
+  farmAcres?: number
+  totalBorrowed?: number
+  totalRepaid?: number
+  activeLoansCount?: number
+  hasDefaulted?: boolean
+  chamaName?: string | null
 }
 
 export interface FarmerRiskProfile {
