@@ -11,6 +11,13 @@ export const KENYAN_COUNTIES = [
   "Vihiga", "Wajir", "West Pokot"
 ]
 
+export const COUNTY_COORDS: Record<string, { lat: number; lng: number }> = {
+  'Nairobi':  { lat: -1.286,  lng: 36.817 },
+  'Nyeri':    { lat: -0.416,  lng: 36.952 },
+  'Mombasa':  { lat: -4.043,  lng: 39.668 },
+  // ... all 47 counties
+}
+
 export const CROPS = [
   { value: "maize", label: { en: "Maize", sw: "Mahindi" } },
   { value: "beans", label: { en: "Beans", sw: "Maharagwe" } },

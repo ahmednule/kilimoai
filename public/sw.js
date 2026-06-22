@@ -1,24 +1,46 @@
-const CACHE_NAME = 'kilimo-ai-v1';
+const CACHE_NAME = 'kilimo-ai-v2';
 const OFFLINE_URL = '/offline.html';
 
-// Assets to cache immediately on install
-const PRECACHE_ASSETS = [
-  '/',
-  '/chat',
-  '/dashboard',
-  '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  '/offline.html',
-];
+const STATIC_EXTENSIONS = /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|json)$/;
 
-// Install event - precache core assets
+// Install event - precache core routes and manifest-defined assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Precaching core assets');
-      return cache.addAll(PRECACHE_ASSETS);
-    })
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+
+      // Precache core navigation routes
+      const coreRoutes = ['/', '/chat', '/dashboard'];
+      const requests = coreRoutes.map((url) => new Request(url));
+
+      // Precache offline page
+      const offlineRequest = new Request(OFFLINE_URL);
+
+      // Try to load precache manifest generated at build time
+      const allRequests = [...requests, offlineRequest];
+      try {
+        const manifestResponse = await fetch('/precache-manifest.json');
+        if (manifestResponse.ok) {
+          const manifest = await manifestResponse.json();
+          for (const url of manifest) {
+            allRequests.push(new Request(url));
+          }
+        }
+      } catch (_) {
+        // Manifest not available (dev mode or first build)
+      }
+
+      // Add all to cache
+      await Promise.allSettled(
+        allRequests.map((req) =>
+          cache.add(req).catch((err) => {
+            console.warn('[SW] Failed to precache:', req.url, err.message);
+          })
+        )
+      );
+
+      console.log('[SW] Precache complete:', allRequests.length, 'assets');
+    })()
   );
   self.skipWaiting();
 });
@@ -40,48 +62,73 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch event - network first, fallback to cache
+// Handle messages from the client
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
+// Fetch event
 self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (event.request.method !== 'GET') return;
 
-  // Skip API requests (we want fresh data)
-  if (event.request.url.includes('/api/')) return;
+  // Skip chrome-extension and other non-http(s) requests
+  const url = new URL(event.request.url);
+  if (!url.protocol.startsWith('http')) return;
 
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        // Clone the response before caching
-        const responseClone = response.clone();
-        
-        // Cache successful responses
-        if (response.status === 200) {
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
+  // Network-only: API requests always need fresh data
+  if (url.pathname.startsWith('/api/')) return;
+
+  if (STATIC_EXTENSIONS.test(url.pathname)) {
+    // Static assets: cache-first (they have hashed filenames in production)
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        return (
+          cached ||
+          fetch(event.request).then((response) => {
+            if (response.ok) {
+              const clone = response.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(event.request, clone);
+              });
+            }
+            return response;
+          })
+        );
+      })
+    );
+  } else if (event.request.mode === 'navigate') {
+    // Navigation: network-first, fall back to cache, then offline page
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, clone);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          return caches.match(event.request).then((cached) => {
+            return cached || caches.match(OFFLINE_URL);
           });
-        }
-        
-        return response;
+        })
+    );
+  } else {
+    // Other requests: network-first
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        return caches.match(event.request);
       })
-      .catch(() => {
-        // Network failed, try cache
-        return caches.match(event.request).then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-          
-          // If it's a navigation request, show offline page
-          if (event.request.mode === 'navigate') {
-            return caches.match(OFFLINE_URL);
-          }
-          
-          return new Response('Offline', { status: 503 });
-        });
-      })
-  );
+    );
+  }
 });
 
-// Handle push notifications (for future use)
+// Push notifications (for future use)
 self.addEventListener('push', (event) => {
   if (event.data) {
     const data = event.data.json();
@@ -94,7 +141,7 @@ self.addEventListener('push', (event) => {
         url: data.url || '/',
       },
     };
-    
+
     event.waitUntil(
       self.registration.showNotification(data.title, options)
     );
@@ -104,7 +151,7 @@ self.addEventListener('push', (event) => {
 // Handle notification clicks
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  
+
   event.waitUntil(
     clients.openWindow(event.notification.data.url)
   );

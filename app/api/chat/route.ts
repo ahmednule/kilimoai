@@ -1,91 +1,85 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { SYSTEM_PROMPT_EN, SYSTEM_PROMPT_SW } from '@/lib/prompts'
-import { FarmerProfile, Language, ScenarioResult } from '@/lib/types'
+import { SYSTEM_PROMPT_EN, SYSTEM_PROMPT_SW, SYSTEM_PROMPT_GENERAL_EN, SYSTEM_PROMPT_GENERAL_SW } from '@/lib/prompts'
+import { FarmerProfile, Language, ChatMode } from '@/lib/types'
 
 interface ChatRequestBody {
   messages: { role: 'user' | 'assistant'; content: string }[]
   farmerProfile: FarmerProfile
   language: Language
+  mode?: ChatMode
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, farmerProfile, language } = (await req.json()) as ChatRequestBody
+    const { messages, farmerProfile, language, mode = 'assessment' } = (await req.json()) as ChatRequestBody
 
     const apiKey = process.env.FEATHERLESS_API_KEY
 
     if (!apiKey) {
-      // Return a mock response for development/demo without API key
-      return NextResponse.json({
-        reply: language === 'sw'
-          ? `Asante ${farmerProfile.name}! Naona unapanga kulima ${farmerProfile.crop} kwenye ekari ${farmerProfile.acres} huko ${farmerProfile.county}. Tafadhali niambie kiasi unachohitaji kukopa ili nikusaidie kufanya tathmini kamili.`
-          : `Thank you ${farmerProfile.name}! I see you're planning to grow ${farmerProfile.crop} on ${farmerProfile.acres} acres in ${farmerProfile.county}. Please tell me how much you need to borrow so I can help you with a complete assessment.`,
-        scenarios: null
-      })
+      return NextResponse.json(
+        { error: 'API key not configured. Set FEATHERLESS_API_KEY in .env' },
+        { status: 500 }
+      )
     }
 
-    const systemPrompt = language === 'sw' ? SYSTEM_PROMPT_SW : SYSTEM_PROMPT_EN
+    const baseUrl = process.env.FEATHERLESS_BASE_URL || 'https://api.featherless.ai/v1'
+    const model = process.env.FEATHERLESS_MODEL || 'deepseek-ai/DeepSeek-V4-Pro'
+    const url = `${baseUrl}/chat/completions`
 
-    const response = await fetch('https://api.featherless.ai/v1/chat/completions', {
+    const isGeneral = mode === 'general'
+    const systemPrompt = isGeneral
+      ? (language === 'sw' ? SYSTEM_PROMPT_GENERAL_SW : SYSTEM_PROMPT_GENERAL_EN)
+      : (language === 'sw' ? SYSTEM_PROMPT_SW : SYSTEM_PROMPT_EN)
+
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'meta-llama/Meta-Llama-3.1-8B-Instruct',
+        model,
         messages: [
           { role: 'system', content: systemPrompt },
           {
             role: 'user',
-            content: `My profile: Name: ${farmerProfile.name}, County: ${farmerProfile.county}, Crop: ${farmerProfile.crop}, Acres: ${farmerProfile.acres}`
+            content: `FARMER PROFILE (use this context for all responses):
+- Name: ${farmerProfile.name}
+- County: ${farmerProfile.county}
+- Crops: ${farmerProfile.crops.map(c => `${c.crop} ${c.acres} acres${c.isRented ? ' (rented)' : ''}`).join(', ')}
+- Total acres: ${farmerProfile.crops.reduce((s, c) => s + c.acres, 0)}
+- Language: ${language}
+
+Use this profile to personalize your responses. You already know the farmer's details — do NOT ask them again unless something is genuinely missing.`,
           },
-          {
-            role: 'assistant',
-            content: language === 'sw'
-              ? `Asante ${farmerProfile.name}! Niko tayari kukusaidia kufanya uamuzi sahihi kuhusu mkopo wako wa kilimo.`
-              : `Thank you ${farmerProfile.name}! I'm ready to help you make the right decision about your farm loan.`
-          },
-          ...messages
+          ...messages,
         ],
-        max_tokens: 1024,
-        temperature: 0.3,
-        stream: false
-      })
+        temperature: 0.7,
+        max_tokens: 2048,
+      }),
     })
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('Featherless API error:', errorText)
-      throw new Error(`Featherless API error: ${response.status}`)
+      return NextResponse.json(
+        { error: `API error ${response.status}: ${errorText}` },
+        { status: response.status }
+      )
     }
 
     const data = await response.json()
-    const reply = data.choices?.[0]?.message?.content || ''
+    const assistantMessage = data.choices?.[0]?.message?.content
 
-    // Try to parse scenario data if present in structured format
-    let scenarios: ScenarioResult | null = null
-    const jsonMatch = reply.match(/```json\n([\s\S]*?)\n```/)
-    if (jsonMatch) {
-      try {
-        scenarios = JSON.parse(jsonMatch[1]) as ScenarioResult
-      } catch (e) {
-        console.error('Failed to parse scenarios JSON:', e)
-      }
+    if (!assistantMessage) {
+      return NextResponse.json(
+        { error: 'No response from AI model' },
+        { status: 500 }
+      )
     }
 
-    // Remove JSON block from reply text
-    const cleanReply = reply.replace(/```json\n[\s\S]*?\n```/g, '').trim()
-
-    return NextResponse.json({
-      reply: cleanReply,
-      scenarios
-    })
+    return NextResponse.json({ message: assistantMessage })
   } catch (error) {
-    console.error('Chat API error:', error)
-    return NextResponse.json(
-      { error: 'Failed to process chat request' },
-      { status: 500 }
-    )
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    return NextResponse.json({ error: `API error: ${message}` }, { status: 500 })
   }
 }
