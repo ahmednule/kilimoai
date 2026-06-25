@@ -7,8 +7,7 @@ import { FarmerProfile, Language, CropEntry } from '@/lib/types'
 import { CROPS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { getToken } from '@/lib/auth'
-
-const LOAN_PER_ACRE = 35000
+import { getAssessments, type StoredAssessment } from '@/lib/assessments'
 
 interface CropRow {
   id: string
@@ -31,6 +30,7 @@ export default function DashboardPage() {
   ])
   const [openSelect, setOpenSelect] = useState<string | null>(null)
   const [onboardErrors, setOnboardErrors] = useState<Record<string, string>>({})
+  const [latestAssessment, setLatestAssessment] = useState<StoredAssessment | null>(null)
 
   useEffect(() => {
     const savedLang = localStorage.getItem('kilimo-language') as Language | null
@@ -90,6 +90,15 @@ export default function DashboardPage() {
       setMounted(true)
     })()
   }, [])
+
+  // Load latest assessment from localStorage
+  useEffect(() => {
+    if (!profile) return
+    const all = getAssessments()
+    if (all.length > 0) {
+      setLatestAssessment(all[0])
+    }
+  }, [profile])
 
   const usedCrops = cropRows.filter(r => r.crop).map(r => r.crop)
   const totalOnboardAcres = cropRows.reduce((s, r) => s + (parseFloat(r.acres) || 0), 0)
@@ -180,24 +189,74 @@ export default function DashboardPage() {
   const crops = profile.crops || []
   const totalAcres = crops.reduce((sum, c) => sum + (c.acres || 0), 0)
   const rentedAcres = crops.reduce((sum, c) => (c.isRented ? sum + (c.acres || 0) : sum), 0)
-  const estimatedLoan = Math.round(totalAcres * LOAN_PER_ACRE)
+  const hasAssessment = !!latestAssessment
+  const assessedLoan = latestAssessment?.scenarios?.recommendedMaxLoan ?? null
+  const assessedLoanAmount = latestAssessment?.scenarios?.loanAmount ?? null
 
   const cropLabels = crops.map(entry => {
     const cropDef = CROPS.find(c => c.value === entry.crop)
     return cropDef?.label?.[language] ?? entry.crop
   }).join(', ')
 
-  const repaymentMonth = 9
-  const today = new Date()
-  const remainingMonths = repaymentMonth - (today.getMonth() + 1) > 0
-    ? repaymentMonth - (today.getMonth() + 1)
-    : 0
-
   function getSeasonValue() {
     const m = new Date().getMonth() + 1
     if (m >= 3 && m <= 5) return { en: 'Long rains', sw: 'Masika' }
     if (m >= 10 && m <= 12) return { en: 'Short rains', sw: 'Vuli' }
     return { en: 'Dry season', sw: 'Kiangazi' }
+  }
+
+  function cropSpecificTips(crops: CropEntry[], lang: Language): string[] {
+    const season = getSeasonValue()
+    const firstCrop = crops[0]?.crop
+    const tips: string[] = []
+    const sw = lang === 'sw'
+
+    if (firstCrop === 'maize' || crops.some(c => c.crop === 'maize')) {
+      tips.push(sw
+        ? 'Panda mbegu za mahindi mara tu mvua za masika zipo imara — usikimbilie mvua ya kwanza'
+        : 'Plant maize seeds once the long rains are established — don\'t rush the first shower')
+      tips.push(sw
+        ? 'Tumia mbolea ya DAP wakati wa kupanda na CAN baadaye kwa mavuno bora'
+        : 'Apply DAP fertilizer at planting and CAN for top-dressing for better yields')
+    }
+    if (firstCrop === 'beans' || crops.some(c => c.crop === 'beans')) {
+      tips.push(sw
+        ? 'Maharagwe hufanya vizuri kwenye udongo ulioandaliwa vizuri — epuka kuotesha kwenye udongo uliojaa maji'
+        : 'Beans do well in well-prepared soil — avoid waterlogging at germination')
+    }
+    if (firstCrop === 'coffee' || crops.some(c => c.crop === 'coffee')) {
+      tips.push(sw
+        ? 'Kagua kahawa yako mara kwa mara kwa dalili za kutu ya kahawa (CLR) haswa wakati wa masika'
+        : 'Scout coffee regularly for CLR (Coffee Leaf Rust) signs especially during the wet season')
+    }
+    if (firstCrop === 'tomatoes' || crops.some(c => c.crop === 'tomatoes')) {
+      tips.push(sw
+        ? 'Nyanya zinahitaji kupogolewa na kufungwa ili kuzuia magonjwa na kuboresha mtiririko wa hewa'
+        : 'Prune and stake tomatoes to prevent disease and improve air circulation')
+    }
+    if (firstCrop === 'potatoes' || crops.some(c => c.crop === 'potatoes')) {
+      tips.push(sw
+        ? 'Zungusha viazi na mazao yasiyo ya mboga za mizizi ili kuepuka ugonjwa wa mchanga'
+        : 'Rotate potatoes with non-root crops to avoid soil-borne diseases')
+    }
+    if (season.en === 'Long rains') {
+      tips.push(sw
+        ? 'Huu msimu unafaa kwa mazao ya mahindi, maharagwe, na mboga — panga ukuzaji wako ipasavyo'
+        : 'This season is ideal for maize, beans, and vegetables — plan your planting accordingly')
+    } else if (season.en === 'Short rains') {
+      tips.push(sw
+        ? 'Vuli inafaa zaidi kwa mboga za majani na maharagwe ya kukomaa haraka'
+        : 'Short rains are best for leafy vegetables and fast-maturing beans')
+    } else {
+      tips.push(sw
+        ? 'Kiangazi — zingatia umwagiliaji kwa mazao yaliyopo na uandae shamba kwa msimu ujao'
+        : 'Dry season — consider irrigation for existing crops and prepare land for the next season')
+    }
+    tips.push(sw
+      ? 'Wasiliana na afisa wa ugani wa eneo lako kwa ushauri wa kibinafsi'
+      : 'Contact your local extension officer for personalized advice')
+
+    return tips.slice(0, 4)
   }
 
   return (
@@ -356,22 +415,73 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          {([
-            { label: { en: 'Loan amount', sw: 'Mkopo' }, value: `KES ${estimatedLoan.toLocaleString()}`, sub: { en: `${totalAcres.toFixed(1)} acres · ${cropLabels}`, sw: `${totalAcres.toFixed(1)} eka · ${cropLabels}` }, icon: CreditCard, color: 'text-green-400', bg: 'bg-green-primary/10' },
-            { label: { en: 'Repayment', sw: 'Malipo' }, value: { en: `${repaymentMonth} months`, sw: `Miezi ${repaymentMonth}` }, sub: { en: remainingMonths > 0 ? `${remainingMonths} months remaining` : 'Due now', sw: remainingMonths > 0 ? `Miezi ${remainingMonths} iliyobaki` : 'Inadaiwa sasa' }, icon: TrendingDown, color: 'text-yellow-400', bg: 'bg-yellow-primary/10' },
-            { label: { en: 'Current season', sw: 'Msimu' }, value: getSeasonValue(), sub: { en: 'See farm tips', sw: 'Angalia vidokezo' }, icon: Droplets, color: 'text-blue-400', bg: 'bg-blue-primary/10' },
-          ] as const).map((card, idx) => (
-            <div key={idx} className="bg-dark-mid border border-border-subtle rounded-xl p-5 flex flex-col gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className={cn('p-1.5 rounded-lg', card.bg)}><card.icon className={cn('w-5 h-5', card.color)} /></div>
-                <span className="text-xs text-text-muted font-medium uppercase tracking-wider">{card.label[language] ?? card.label.en}</span>
-              </div>
-              <p className="text-xl font-semibold text-text-primary">
-                {typeof card.value === 'string' ? card.value : (card.value as Record<string,string>)[language] ?? (card.value as Record<string,string>).en}
-              </p>
-              <p className="text-xs text-text-muted/70 leading-snug">{(typeof card.sub === 'object' ? (card.sub as Record<string,string>)[language] ?? (card.sub as Record<string,string>).en : card.sub)}</p>
+          {/* Loan amount card */}
+          <div className="bg-dark-mid border border-border-subtle rounded-xl p-5 flex flex-col gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 rounded-lg bg-green-primary/10"><CreditCard className="w-5 h-5 text-green-400" /></div>
+              <span className="text-xs text-text-muted font-medium uppercase tracking-wider">{language === 'sw' ? 'Mkopo' : 'Loan amount'}</span>
             </div>
-          ))}
+            {hasAssessment && assessedLoan ? (
+              <>
+                <p className="text-xl font-semibold text-text-primary">KES {assessedLoan.toLocaleString()}</p>
+                <p className="text-xs text-text-muted/70 leading-snug">
+                  {language === 'sw'
+                    ? `Pendekezo la AI · KSh ${assessedLoanAmount?.toLocaleString() ?? '—'} uliouliza`
+                    : `AI-recommended · You asked for KSh ${assessedLoanAmount?.toLocaleString() ?? '—'}`}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-xl font-semibold text-text-muted/40">—</p>
+                <a href="/chat" className="text-xs text-green-400 hover:text-green-300 transition-colors">
+                  {language === 'sw' ? 'Anza tathmini ya mkopo' : 'Start a loan assessment'} &rsaquo;
+                </a>
+              </>
+            )}
+          </div>
+
+          {/* Repayment card */}
+          <div className="bg-dark-mid border border-border-subtle rounded-xl p-5 flex flex-col gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 rounded-lg bg-yellow-primary/10"><TrendingDown className="w-5 h-5 text-yellow-400" /></div>
+              <span className="text-xs text-text-muted font-medium uppercase tracking-wider">{language === 'sw' ? 'Malipo' : 'Repayment'}</span>
+            </div>
+            {hasAssessment && assessedLoan ? (
+              (() => {
+                const total = Math.round(assessedLoan * 1.18)
+                const monthly = Math.round(total / 6)
+                return <>
+                  <p className="text-xl font-semibold text-text-primary">{language === 'sw' ? `KES ${monthly.toLocaleString()}/mwezi` : `KES ${monthly.toLocaleString()}/mo`}</p>
+                  <p className="text-xs text-text-muted/70 leading-snug">{language === 'sw' ? `Jumla KES ${total.toLocaleString()} · miezi 6` : `Total KES ${total.toLocaleString()} · 6 months`}</p>
+                </>
+              })()
+            ) : (
+              <>
+                <p className="text-xl font-semibold text-text-muted/40">—</p>
+                <p className="text-xs text-text-muted/70 leading-snug">
+                  {language === 'sw' ? 'Kamilisha tathmini kuona makadirio' : 'Complete assessment to see estimates'}
+                </p>
+              </>
+            )}
+          </div>
+
+          {/* Current season card */}
+          <div className="bg-dark-mid border border-border-subtle rounded-xl p-5 flex flex-col gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 rounded-lg bg-blue-primary/10"><Droplets className="w-5 h-5 text-blue-400" /></div>
+              <span className="text-xs text-text-muted font-medium uppercase tracking-wider">{language === 'sw' ? 'Msimu' : 'Current season'}</span>
+            </div>
+            <p className="text-xl font-semibold text-text-primary">{getSeasonValue()[language] ?? getSeasonValue().en}</p>
+            <p className="text-xs text-text-muted/70 leading-snug">
+              {hasAssessment && latestAssessment?.riskLevel
+                ? (language === 'sw'
+                  ? `Hatari: ${latestAssessment.riskLevel === 'HIGH' ? 'Juu' : latestAssessment.riskLevel === 'MEDIUM' ? 'Wastani' : 'Chini'}`
+                  : `Risk: ${latestAssessment.riskLevel}`)
+                : (language === 'sw'
+                  ? 'Hatari: — · ' : 'Risk: — · ')}
+              {!hasAssessment && <a href="/chat" className="text-green-400 hover:text-green-300">{language === 'sw' ? 'Anza tathmini' : 'Assess now'}</a>}
+            </p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -428,23 +538,47 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div className="bg-dark-mid border border-border-subtle rounded-xl p-5">
-            <p className="text-xs uppercase tracking-wider text-text-muted mb-3">Repayment plan</p>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-6 h-6 rounded-full bg-green-300 flex items-center justify-center text-amber-900 text-[10px] font-bold">OK</div>
-              <div><p className="text-sm font-medium text-text-primary">KES 60,000 — Pay now</p><p className="text-xs text-text-muted">Jul 2026 installment</p></div>
-            </div>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-6 h-6 rounded-full bg-dark-base border border-border-subtle flex items-center justify-center text-amber-100 text-[10px] font-bold">OK</div>
-              <div><p className="text-sm font-medium text-text-muted">KES 60,000 — Aug 2026</p><p className="text-xs text-text-muted">2 upcoming installments</p></div>
-            </div>
-            <button className="mt-2 text-xs text-green-400 hover:text-green-300 transition-colors">View full plan &rsaquo;</button>
+            <p className="text-xs uppercase tracking-wider text-text-muted mb-3">{language === 'sw' ? 'Mpango wa malipo' : 'Repayment plan'}</p>
+            {hasAssessment && assessedLoan ? (
+              (() => {
+                const monthly = Math.round(assessedLoan * 1.18 / 6)
+                const now = new Date()
+                const currentMonth = now.getMonth()
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+                const nextMonth = (currentMonth + 1) % 12
+                const nextNextMonth = (currentMonth + 2) % 12
+                const currentYear = now.getFullYear()
+                const year1 = nextMonth < currentMonth ? currentYear + 1 : currentYear
+                const year2 = nextNextMonth < currentMonth ? currentYear + 1 : currentYear
+                const instal1 = `${months[nextMonth]} ${year1}`
+                const instal2 = `${months[nextNextMonth]} ${year2}`
+                const remaining = 6 - 1 // first month is "due now"
+                return <>
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-6 h-6 rounded-full bg-green-300 flex items-center justify-center text-amber-900 text-[10px] font-bold">OK</div>
+                    <div><p className="text-sm font-medium text-text-primary">KES {monthly.toLocaleString()} — {language === 'sw' ? 'Lipa sasa' : 'Pay now'}</p><p className="text-xs text-text-muted">{instal1} {language === 'sw' ? 'awamu' : 'installment'}</p></div>
+                  </div>
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-6 h-6 rounded-full bg-dark-base border border-border-subtle flex items-center justify-center text-amber-100 text-[10px] font-bold">OK</div>
+                    <div><p className="text-sm font-medium text-text-muted">KES {monthly.toLocaleString()} — {instal2}</p><p className="text-xs text-text-muted">{remaining} {language === 'sw' ? 'awamu zimesalia' : 'upcoming installments'}</p></div>
+                  </div>
+                </>
+              })()
+            ) : (
+              <div className="py-4 text-center">
+                <p className="text-sm text-text-muted mb-3">{language === 'sw' ? 'Hakuna mpango wa malipo bado' : 'No repayment plan yet'}</p>
+                <a href="/chat" className="text-xs text-green-400 hover:text-green-300 transition-colors">{language === 'sw' ? 'Anza tathmini ya mkopo' : 'Start a loan assessment'} &rsaquo;</a>
+              </div>
+            )}
           </div>
           <div className="bg-dark-mid border border-border-subtle rounded-xl p-5">
-            <p className="text-xs uppercase tracking-wider text-text-muted mb-3">Farm tips</p>
+            <p className="text-xs uppercase tracking-wider text-text-muted mb-3">{language === 'sw' ? 'Vidokezo vya kilimo' : 'Farm tips'}</p>
             <ul className="space-y-3">
-              <li className="flex items-start gap-2 text-sm text-text-primary"><span className="text-green-400 mt-0.5">&bull;</span>Apply top-dressing fertilizer in the next 7 days for better maize yields</li>
-              <li className="flex items-start gap-2 text-sm text-text-primary"><span className="text-green-400 mt-0.5">&bull;</span>Scout for fall armyworm — early signs reported in neighboring counties</li>
-              <li className="flex items-start gap-2 text-sm text-text-primary"><span className="text-green-400 mt-0.5">&bull;</span>Contact your input supplier before the end of the month — discounts available</li>
+              {crops.length > 0 ? cropSpecificTips(crops, language).map((tip, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-text-primary"><span className="text-green-400 mt-0.5">&bull;</span>{tip}</li>
+              )) : (
+                <li className="flex items-start gap-2 text-sm text-text-muted">{language === 'sw' ? 'Ongeza mazao yako ili kupata vidokezo' : 'Add your crops to get personalized tips'}</li>
+              )}
             </ul>
           </div>
         </div>

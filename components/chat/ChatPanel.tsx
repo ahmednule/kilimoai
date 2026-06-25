@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback, KeyboardEvent } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Send, Camera, X, Trash2 } from 'lucide-react'
-import { ChatMessage as ChatMessageType, FarmerProfile, Language, RiskLevel, ScenarioResult, PestScanResult } from '@/lib/types'
+import { ChatMessage as ChatMessageType, FarmerProfile, Language, ChatMode, RiskLevel, ScenarioResult, PestScanResult } from '@/lib/types'
 import { QUICK_REPLIES, UI_TEXT, CROPS } from '@/lib/constants'
 import { ChatMessage } from './ChatMessage'
 import { TypingIndicator } from './TypingIndicator'
@@ -14,7 +14,9 @@ import { getChatMessages, saveChatMessages, clearChatMessages } from '@/lib/chat
 interface ChatPanelProps {
   profile: FarmerProfile
   language: Language
+  mode?: ChatMode
   onLanguageChange: (lang: Language) => void
+  onModeChange?: (mode: ChatMode) => void
   onRiskUpdate: (level: RiskLevel) => void
   onStepComplete: (stepId: number) => void
   onScenarioResult?: (scenarios: ScenarioResult) => void
@@ -45,7 +47,9 @@ function buildCropSummary(crops: { crop: string; acres: number }[], lang: Langua
 export function ChatPanel({
   profile,
   language,
+  mode = 'assessment',
   onLanguageChange,
+  onModeChange,
   onRiskUpdate,
   onStepComplete,
   onScenarioResult,
@@ -88,12 +92,18 @@ export function ChatPanel({
   // Add greeting only if no saved messages exist
   useEffect(() => {
     if (messages.length > 0) return
-    const greeting = language === 'sw'
-      ? `Habari ${profile.name}! Niko tayari kukusaidia. Unapanga kukopa kiasi gani kwa ${cropSummary}?`
-      : `Hello ${profile.name}! Ready to help you make the right call on your farm loan. You're growing ${cropSummary} on ${totalAcres} acres${rentDetail} in ${profile.county} — how much are you looking to borrow?`
+
+    const isGeneral = mode === 'general'
+    const greeting = isGeneral
+      ? (language === 'sw'
+        ? `Habari ${profile.name}! Niko hapa kukusaidia na maswali yoyote ya kilimo. Unauliza nini kuhusu ${cropSummary}?`
+        : `Hello ${profile.name}! I'm here to help with any farming questions. What would you like to know about your ${cropSummary}?`)
+      : (language === 'sw'
+        ? `Habari ${profile.name}! Niko tayari kukusaidia na tathmini ya mkopo wako. Unapanga kukopa kiasi gani kwa ${cropSummary}?`
+        : `Hello ${profile.name}! Ready to help you make the right call on your farm loan. You're growing ${cropSummary} on ${totalAcres} acres${rentDetail} in ${profile.county} — how much are you looking to borrow?`)
 
     setMessages([{ id: '0', role: 'assistant', content: greeting, timestamp: new Date() }])
-  }, [profile, cropSummary, totalAcres, language])
+  }, [profile, cropSummary, totalAcres, language, mode])
 
   const handleClearHistory = useCallback(() => {
     clearChatMessages()
@@ -121,6 +131,7 @@ export function ChatPanel({
           messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })),
           farmerProfile: profile,
           language,
+          mode,
         }),
       })
 

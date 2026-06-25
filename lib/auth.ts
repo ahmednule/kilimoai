@@ -145,8 +145,13 @@ export async function signupWithPhone(
 
 export function logout(): void {
   if (typeof window === 'undefined') return
-  localStorage.removeItem(SESSION_KEY)
-  localStorage.removeItem(TOKEN_KEY)
+  const keys = [
+    SESSION_KEY, TOKEN_KEY,
+    'kilimo-profile',
+    'kilimo-chat-messages', 'kilimo-chat-steps', 'kilimo-chat-risk', 'kilimo-chat-result',
+    'kilimo-assessments', 'kilimo-email',
+  ]
+  keys.forEach(k => { try { localStorage.removeItem(k) } catch {} })
 }
 
 export function isAuthenticated(): boolean {

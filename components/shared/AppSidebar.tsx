@@ -154,9 +154,12 @@ export function AppSidebar() {
     : '??'
 
   const handleLogout = () => {
-    localStorage.removeItem('kilimo-session')
-    localStorage.removeItem('kilimo-token')
-    localStorage.removeItem('kilimo-profile')
+    const keys = [
+      'kilimo-session', 'kilimo-token', 'kilimo-profile',
+      'kilimo-chat-messages', 'kilimo-chat-steps', 'kilimo-chat-risk', 'kilimo-chat-result',
+      'kilimo-assessments', 'kilimo-email',
+    ]
+    keys.forEach(k => { try { localStorage.removeItem(k) } catch {} })
     router.push('/auth/login')
   }
 

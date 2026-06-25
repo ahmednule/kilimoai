@@ -138,7 +138,7 @@ Use this profile to personalize your responses. You already know the farmer's de
           ...messages,
         ],
         temperature: 0.7,
-        max_tokens: 2048,
+        max_tokens: 4096,
       }),
     })
 

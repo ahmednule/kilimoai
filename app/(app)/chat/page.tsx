@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { RefreshCw, AlertTriangle } from 'lucide-react'
-import { FarmerProfile, Language, RiskLevel, ScenarioResult, WeatherData } from '@/lib/types'
+import { FarmerProfile, Language, ChatMode, RiskLevel, ScenarioResult, WeatherData } from '@/lib/types'
 import { ChatPanel } from '@/components/chat/ChatPanel'
 import { AssessmentTracker, AssessmentStep } from '@/components/chat/AssessmentTracker'
 import { saveAssessment, type StoredAssessment } from '@/lib/assessments'
@@ -24,6 +24,7 @@ export default function ChatPage() {
   const [profile,      setProfile]      = useState<FarmerProfile | null>(null)
   const [hydrated,     setHydrated]     = useState(false)
   const [language,     setLanguage]     = useState<Language>('en')
+  const [mode,         setMode]         = useState<ChatMode>('assessment')
   const [riskLevel,    setRiskLevel]    = useState<RiskLevel>(() => loadChatState<RiskLevel>('kilimo-chat-risk', 'UNKNOWN'))
   const [steps,        setSteps]        = useState<AssessmentStep[]>(() => loadChatState<AssessmentStep[]>('kilimo-chat-steps', INITIAL_STEPS))
   const [weather,      setWeather]      = useState<WeatherData | null>(null)
@@ -130,6 +131,10 @@ export default function ChatPage() {
   const handleLanguageChange = useCallback((lang: Language) => {
     setLanguage(lang)
     localStorage.setItem('kilimo-language', lang)
+  }, [])
+
+  const handleModeChange = useCallback((m: ChatMode) => {
+    setMode(m)
   }, [])
 
   const handleReset = useCallback(() => {
@@ -248,13 +253,39 @@ export default function ChatPage() {
     <div className="flex h-full">
       <div className="flex-1 flex flex-col min-w-0">
         <div className="flex items-center justify-between px-6 py-3 border-b border-border-subtle shrink-0">
-          <h2 className="font-serif text-lg font-semibold text-text-primary">Loan Assessment</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="font-serif text-lg font-semibold text-text-primary">
+              {mode === 'general' ? (language === 'sw' ? 'Maswali ya Kilimo' : 'Farming Advice') : 'Loan Assessment'}
+            </h2>
+            <div className="flex items-center gap-1 rounded-full bg-dark-mid p-0.5">
+              <button
+                onClick={() => handleModeChange('assessment')}
+                className={`px-2.5 py-1 text-[11px] font-medium rounded-full transition-all duration-200 ${
+                  mode === 'assessment'
+                    ? 'bg-green-primary text-text-primary'
+                    : 'text-text-muted hover:text-text-primary'
+                }`}
+              >
+                {language === 'sw' ? 'Mkopo' : 'Loan'}
+              </button>
+              <button
+                onClick={() => handleModeChange('general')}
+                className={`px-2.5 py-1 text-[11px] font-medium rounded-full transition-all duration-200 ${
+                  mode === 'general'
+                    ? 'bg-green-primary text-text-primary'
+                    : 'text-text-muted hover:text-text-primary'
+                }`}
+              >
+                {language === 'sw' ? 'Kilimo' : 'Farm'}
+              </button>
+            </div>
+          </div>
           <button
             onClick={handleReset}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border-subtle text-xs text-text-muted hover:text-text-primary hover:border-green-primary/40 transition-all"
           >
             <RefreshCw className="w-3 h-3" />
-            New assessment
+            {language === 'sw' ? 'Anza upya' : 'New assessment'}
           </button>
         </div>
 
@@ -263,7 +294,9 @@ export default function ChatPage() {
             key={chatKey}
             profile={profile}
             language={language}
+            mode={mode}
             onLanguageChange={handleLanguageChange}
+            onModeChange={handleModeChange}
             onRiskUpdate={handleRiskUpdate}
             onStepComplete={handleStepComplete}
             onScenarioResult={handleScenarioResult}
