@@ -1,12 +1,23 @@
 export type Language = 'en' | 'sw'
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'UNKNOWN'
+export type Severity = 'LOW' | 'MEDIUM' | 'HIGH' | 'UNKNOWN'
 export type Rainfall = 'good' | 'average' | 'poor'
-export type ChatMode = 'assessment' | 'general'
+export type ChatMode = 'assessment' | 'general' | 'pest'
 
 export interface CropEntry {
   crop: string
   acres: number
   isRented: boolean
+  rentPerAcre?: number
+}
+
+export interface WeatherData {
+  county: string
+  rainfallMm: number
+  periodDays: number
+  season: string
+  forecastLabel: string
+  adequacyPct: number
 }
 
 export interface FarmerProfile {
@@ -14,6 +25,14 @@ export interface FarmerProfile {
   county: string
   crops: CropEntry[]
   language: Language
+  crop?: string
+  acres?: number
+  rentedAcres?: number
+  rentCostPerAcre?: number
+  phone?: string
+  email?: string
+  role?: string
+  verified?: boolean
 }
 
 export interface CaseResult {
@@ -35,12 +54,31 @@ export interface ScenarioResult {
   cropType: string
 }
 
+export interface PestScanResult {
+  pest: string
+  confidence: number
+  severity: Severity
+  recommendation: string
+  imageUrl?: string
+  commonName?: string
+  scientificName?: string
+  isPest: boolean
+  affectedCrops?: string[]
+  treatment?: {
+    chemical: string[]
+    organic: string[]
+    prevention: string[]
+  }
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
   scenarios?: ScenarioResult
+  pestScan?: PestScanResult
+  imageUrl?: string
 }
 
 export interface ChatState {
@@ -67,6 +105,7 @@ export interface ChamaGroup {
 export interface ChamaMember {
   id: string
   userId: string
+  userName?: string
   chamaId: string
   chamaName: string
   status: MembershipStatus

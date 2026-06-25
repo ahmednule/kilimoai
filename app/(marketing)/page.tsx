@@ -1,6 +1,8 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { ArrowRight, ChevronDown, TrendingDown, Users, AlertTriangle, Sprout } from 'lucide-react'
 import { FabButton } from '@/components/chatbot/FabButton'
@@ -45,7 +47,13 @@ const UI_TEXT = {
 
 export default function HomePage() {
   const { language } = useLanguage()
+  const router = useRouter()
   const t = UI_TEXT[language]
+
+  const [hasProfile, setHasProfile] = useState(false)
+  useEffect(() => {
+    setHasProfile(!!localStorage.getItem('kilimo-profile'))
+  }, [])
 
   const stats = [
     { icon: TrendingDown, text: t.stat1 },
@@ -123,9 +131,9 @@ export default function HomePage() {
               transition={{ duration: 0.5, delay: 1.7 }}
               className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 px-4"
             >
-              <Link
-                href="/chat"
-                className="group w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 bg-gold-harvest text-dark-base font-semibold rounded-xl hover:bg-gold-harvest/90 transition-all duration-200 active:scale-95 shadow-lg shadow-gold-harvest/20 min-h-[56px] relative overflow-hidden"
+              <motion.button
+                onClick={() => router.push(hasProfile ? '/chat' : '/auth/login')}
+                className="group w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 bg-gold-harvest text-dark-base font-semibold rounded-xl hover:bg-gold-harvest/90 transition-all duration-200 active:scale-95 shadow-lg shadow-gold-harvest/20 min-h-[56px] relative overflow-hidden cursor-pointer"
               >
                 <motion.span
                   className="absolute inset-0 bg-white/20 rounded-xl"
@@ -136,7 +144,7 @@ export default function HomePage() {
                   {t.ctaPrimary}
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </span>
-              </Link>
+              </motion.button>
               <Link
                 href="/how-it-works"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 border border-text-muted/30 text-text-primary font-semibold rounded-xl hover:bg-text-primary/5 transition-all duration-200 min-h-[56px]"

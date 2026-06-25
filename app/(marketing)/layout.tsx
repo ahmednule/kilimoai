@@ -68,23 +68,22 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
                   Kilimo AI
                 </motion.span>
               </Link>
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <Link
-                  href="/auth/signup"
-                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold bg-gold-harvest text-dark-base rounded-xl hover:bg-gold-harvest/90 transition-all shadow-lg shadow-gold-harvest/10"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  <span className="hidden xs:inline">{t.signup}</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
+              <div className="flex items-center gap-2">
                 <Link
                   href="/auth/login"
-                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors rounded-xl hover:bg-text-primary/5"
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-text-secondary hover:text-green-400 transition-colors rounded-xl hover:bg-green-primary/5 border border-transparent hover:border-green-primary/20"
                 >
                   <LogIn className="w-4 h-4" />
-                  <span className="hidden xs:inline">{t.login}</span>
+                  <span>{t.login}</span>
                 </Link>
-                <div className="w-px h-5 bg-border-subtle mx-0.5 hidden xs:block" />
+                <Link
+                  href="/auth/signup"
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold bg-gold-harvest text-dark-base rounded-xl hover:bg-gold-harvest/90 transition-all shadow-lg shadow-gold-harvest/20 hover:shadow-gold-harvest/30 active:scale-[0.97]"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>{t.signup}</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
                 <LanguageToggle language={language} onChange={handleLanguageChange} />
               </div>
             </div>

@@ -1,8 +1,9 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { useRouter } from 'next/navigation'
 import { Users, PiggyBank, Landmark, HeartHandshake, Star, TrendingUp, Building2, FileText, ArrowRight } from 'lucide-react'
-import Link from 'next/link'
 import { FabButton } from '@/components/chatbot/FabButton'
 import { useLanguage, FloatingOrb, FadeInView } from '@/components/marketing/shared'
 
@@ -43,7 +44,13 @@ const UI_TEXT = {
 
 export default function ChamaPage() {
   const { language } = useLanguage()
+  const router = useRouter()
   const t = UI_TEXT[language]
+
+  const [hasProfile, setHasProfile] = useState(false)
+  useEffect(() => {
+    setHasProfile(!!localStorage.getItem('kilimo-profile'))
+  }, [])
 
   const features = [
     { icon: HeartHandshake, title: t.feature1Title, desc: t.feature1Desc, color: '#22C55E' },
@@ -147,13 +154,13 @@ export default function ChamaPage() {
           <FadeInView delay={0.5} className="mt-12 max-w-3xl mx-auto text-center">
             <div className="bg-dark-mid border border-border-subtle rounded-2xl p-6">
               <p className="text-text-muted text-sm leading-relaxed mb-4">{t.howItWorks}</p>
-              <Link
-                href="/chat"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gold-harvest text-dark-base font-semibold rounded-xl hover:bg-gold-harvest/90 transition-all hover:scale-105"
+              <button
+                onClick={() => router.push(hasProfile ? '/chat' : '/auth/login')}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gold-harvest text-dark-base font-semibold rounded-xl hover:bg-gold-harvest/90 transition-all hover:scale-105 cursor-pointer"
               >
                 {t.cta}
                 <ArrowRight className="w-4 h-4" />
-              </Link>
+              </button>
             </div>
           </FadeInView>
         </div>

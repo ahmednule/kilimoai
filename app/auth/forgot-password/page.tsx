@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Loader2, Mail, CheckCircle2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { getLanguage, Language } from '@/lib/i18n'
 
 const UI_TEXT = {
@@ -47,20 +48,33 @@ export default function ForgotPasswordPage() {
 
   const t = UI_TEXT[lang]
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
     if (!email.trim()) {
-      setError(lang === 'sw' ? 'Tafadhali ingiza barua pepe yako' : 'Please enter your email address')
+      toast.error(lang === 'sw' ? 'Tafadhali ingiza barua pepe yako' : 'Please enter your email address')
       return
     }
 
     setLoading(true)
-    setTimeout(() => {
-      setLoading(false)
-      setSent(true)
-    }, 1500)
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setSent(true)
+        toast.success(lang === 'sw' ? 'Ikiwa akaunti ipo, kiungo kimetumwa.' : 'If the account exists, a reset link was sent.')
+      } else {
+        toast.error(data.error || 'Something went wrong')
+      }
+    } catch {
+      toast.error('Network error')
+    }
+    setLoading(false)
   }
 
   return (
@@ -76,12 +90,6 @@ export default function ForgotPasswordPage() {
         <h1 className="font-serif text-2xl font-bold text-text-primary">{sent ? t.checkEmail : t.title}</h1>
         <p className="mt-1 text-sm text-text-muted">{sent ? `${t.emailSent} ${email}, ${t.emailSent2}` : t.subtitle}</p>
       </div>
-
-      {error && (
-        <div className="mb-6 rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400">
-          {error}
-        </div>
-      )}
 
       {sent ? (
         <div className="text-center py-8">

@@ -1,8 +1,9 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { useRouter } from 'next/navigation'
 import { MessageSquare, Cloud, BarChart3, ArrowRight, ClipboardCheck, Calculator, Coins, ShieldCheck, CheckCircle2, ChevronDown } from 'lucide-react'
-import Link from 'next/link'
 import { FabButton } from '@/components/chatbot/FabButton'
 import { useLanguage, FloatingOrb, FadeInView, TiltCard } from '@/components/marketing/shared'
 
@@ -63,7 +64,13 @@ const FLOW_COLORS = ['#1A7A4A', '#2B6CB0', '#8B5E3C', '#D4A843', '#22C55E']
 
 export default function HowItWorksPage() {
   const { language } = useLanguage()
+  const router = useRouter()
   const t = UI_TEXT[language]
+
+  const [hasProfile, setHasProfile] = useState(false)
+  useEffect(() => {
+    setHasProfile(!!localStorage.getItem('kilimo-profile'))
+  }, [])
 
   const steps = [
     { icon: MessageSquare, title: t.step1Title, description: t.step1Desc, color: STEP_COLORS[0] },
@@ -193,13 +200,13 @@ export default function HowItWorksPage() {
         <div className="max-w-3xl mx-auto px-4 text-center">
           <FadeInView>
             <p className="text-text-muted text-sm mb-4">{t.ctaSub}</p>
-            <Link
-              href="/chat"
-              className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-gold-harvest text-dark-base font-semibold rounded-xl hover:bg-gold-harvest/90 transition-all hover:scale-105 shadow-lg shadow-gold-harvest/20"
+            <button
+              onClick={() => router.push(hasProfile ? '/chat' : '/auth/login')}
+              className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-gold-harvest text-dark-base font-semibold rounded-xl hover:bg-gold-harvest/90 transition-all hover:scale-105 shadow-lg shadow-gold-harvest/20 cursor-pointer"
             >
               {t.cta}
               <ArrowRight className="w-5 h-5" />
-            </Link>
+            </button>
           </FadeInView>
         </div>
       </section>

@@ -12,7 +12,10 @@ export async function GET(req: NextRequest) {
     const session = getSession()
 
     const result = await session.run(
-      'MATCH (u:User {sessionToken: $token}) RETURN u',
+      `MATCH (u:User {sessionToken: $token})
+       OPTIONAL MATCH (u)-[:HAS_ROLE]->(r:Role)
+       OPTIONAL MATCH (u)-[:LOCATED_IN]->(co:County)
+       RETURN u, r.name AS roleName, co.name AS countyName`,
       { token }
     )
 
@@ -22,15 +25,16 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Invalid or expired session' }, { status: 401 })
     }
 
-    const user = result.records[0].get('u').properties
+    const record = result.records[0]
+    const user = record.get('u').properties
 
     return NextResponse.json({
       success: true,
       user: {
         name: user.name,
         email: user.email,
-        role: user.role,
-        county: user.county,
+        role: record.get('roleName'),
+        county: record.get('countyName'),
       }
     })
   } catch (err: any) {

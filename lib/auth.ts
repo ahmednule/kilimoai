@@ -66,6 +66,22 @@ export async function login(email: string, password: string): Promise<{ success:
       county: data.user.county,
     }
     saveSession(session, data.sessionToken)
+
+    // Fetch full profile and save to localStorage so dashboard/chat/sidebar can read it
+    try {
+      const profRes = await fetch('/api/profile', {
+        headers: { Authorization: `Bearer ${data.sessionToken}` },
+      })
+      if (profRes.ok) {
+        const profData = await profRes.json()
+        if (profData.success && profData.profile) {
+          localStorage.setItem('kilimo-profile', JSON.stringify(profData.profile))
+        }
+      }
+    } catch (e) {
+      console.error('[auth] failed to fetch profile after login', e)
+    }
+
     return { success: true }
   } catch {
     return { success: false, error: 'Network error. Please try again.' }
@@ -77,13 +93,15 @@ export async function signup(
   email: string,
   password: string,
   county: string,
-  role: UserRole
-): Promise<{ success: boolean; error?: string }> {
+  role: UserRole,
+  phone?: string,
+  crops?: string[]
+): Promise<{ success: boolean; error?: string; emailSent?: boolean }> {
   try {
     const res = await fetch('/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password, county, role }),
+      body: JSON.stringify({ name, email, password, county, role, phone, crops }),
     })
 
     const data = await res.json()
@@ -92,15 +110,34 @@ export async function signup(
       return { success: false, error: data.error || 'Signup failed' }
     }
 
-    const session: UserSession = {
-      isAuthenticated: true,
-      role: data.user.role,
-      name: data.user.name,
-      email: data.user.email,
-      county: data.user.county,
+    return { success: true, emailSent: data.emailSent }
+  } catch {
+    return { success: false, error: 'Network error. Please try again.' }
+  }
+}
+
+export async function signupWithPhone(
+  name: string,
+  email: string,
+  password: string,
+  county: string,
+  role: UserRole,
+  phone: string
+): Promise<{ success: boolean; error?: string; emailSent?: boolean }> {
+  try {
+    const res = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password, county, role, phone }),
+    })
+
+    const data = await res.json()
+
+    if (!data.success) {
+      return { success: false, error: data.error || 'Signup failed' }
     }
-    saveSession(session, data.sessionToken)
-    return { success: true }
+
+    return { success: true, emailSent: data.emailSent }
   } catch {
     return { success: false, error: 'Network error. Please try again.' }
   }

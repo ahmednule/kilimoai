@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ChatMessage as ChatMessageType, Language } from '@/lib/types'
 import { ScenarioCards } from './ScenarioCards'
+import { PestScanCard } from './PestScanCard'
 import { cn } from '@/lib/utils'
 
 interface ChatMessageProps {
@@ -89,6 +90,24 @@ export function ChatMessage({ message, language }: ChatMessageProps) {
             >
               {message.content}
             </ReactMarkdown>
+          )}
+
+          {message.imageUrl && message.role === 'user' && (
+            <div className="mt-2 rounded-lg overflow-hidden border border-border-subtle max-w-[240px]">
+              <img
+                src={message.imageUrl}
+                alt="Uploaded crop image"
+                className="w-full h-auto object-cover"
+              />
+            </div>
+          )}
+
+          {message.pestScan && (
+            <PestScanCard
+              result={message.pestScan}
+              language={language}
+              imagePreview={message.imageUrl}
+            />
           )}
 
           {message.scenarios && (

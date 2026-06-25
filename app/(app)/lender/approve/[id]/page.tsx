@@ -9,15 +9,25 @@ import {
 import { cn } from '@/lib/utils'
 import { RiskLevel, Language } from '@/lib/types'
 import { RiskBadge } from '@/components/shared/RiskBadge'
-import { getSession } from '@/lib/auth'
+import { getSession, getToken } from '@/lib/auth'
 
 type View = 'LOADING' | 'UNAUTHORIZED' | 'DECISION'
 type Decision = 'approve' | 'counter' | 'reject'
 
-const MOCK_FARMERS: Record<string, { id: string; name: string; county: string; crop: string; acres: number; loanAmount: number; riskLevel: RiskLevel; riskScore: number; phone: string }> = {
-  'f-1': { id: 'f-1', name: 'Samuel Mwangi', county: 'Nyeri', crop: 'coffee', acres: 3, loanAmount: 85000, riskLevel: 'LOW', riskScore: 18, phone: '+254 712 345 678' },
-  'f-2': { id: 'f-2', name: 'Grace Akinyi', county: 'Kisumu', crop: 'rice', acres: 5, loanAmount: 120000, riskLevel: 'MEDIUM', riskScore: 45, phone: '+254 723 987 654' },
-  'f-3': { id: 'f-3', name: 'Peter Kamau', county: 'Nakuru', crop: 'maize', acres: 10, loanAmount: 200000, riskLevel: 'HIGH', riskScore: 72, phone: '+254 734 561 234' },
+interface FarmerData {
+  id: string
+  name: string
+  county: string
+  crop: string
+  crops: string[]
+  acres: number
+  acreage: number
+  loanAmount: number
+  loanId: string
+  riskLevel: RiskLevel
+  riskScore: number
+  phone: string
+  creditScore: number
 }
 
 const formatKES = (n: number) => `Ksh ${n.toLocaleString('en-KE')}`
@@ -32,7 +42,8 @@ export default function ApproveLoanPage() {
   const [mounted, setMounted] = useState(false)
   const [view, setView] = useState<View>('LOADING')
   const [language] = useState<Language>('en')
-  const [farmer, setFarmer] = useState<typeof MOCK_FARMERS[string] | null>(null)
+  const [farmer, setFarmer] = useState<FarmerData | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   const [decision, setDecision] = useState<Decision>(modeParam as Decision)
   const [submitted, setSubmitted] = useState(false)
@@ -55,27 +66,85 @@ export default function ApproveLoanPage() {
     const session = getSession()
     if (!session.isAuthenticated || session.role !== 'lender') {
       setView('UNAUTHORIZED')
-    } else {
-      const f = MOCK_FARMERS[id]
-      setFarmer(f ?? null)
-      if (f) {
-        setApprovedAmount(f.loanAmount)
-        setInterestRate(12)
-        setDuration(12)
-        setCounterAmount(Math.round(f.loanAmount * 0.7))
-        setCounterRate(15)
-        setCounterDuration(9)
+      setMounted(true)
+      return
+    }
+    ;(async () => {
+      try {
+        const token = getToken()
+        const res = await fetch(`/api/lender/loans?loanId=${id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (res.ok) {
+          const data = await res.json()
+          const loans = data.loans || []
+          const loan = loans.find((l: any) => l.id === id)
+          if (loan) {
+            const f: FarmerData = {
+              id: loan.farmerId,
+              name: loan.farmerName,
+              county: loan.county,
+              crop: (loan.crops || [])[0] || '',
+              crops: loan.crops || [],
+              acres: loan.acreage,
+              acreage: loan.acreage,
+              loanAmount: loan.loanAmount,
+              loanId: loan.id,
+              riskLevel: loan.riskScore <= 25 ? 'LOW' : loan.riskScore <= 55 ? 'MEDIUM' : 'HIGH',
+              riskScore: loan.riskScore,
+              phone: loan.farmerPhone || '',
+              creditScore: loan.creditScore || 0,
+            }
+            setFarmer(f)
+            setApprovedAmount(f.loanAmount)
+            setInterestRate(12)
+            setDuration(12)
+            setCounterAmount(Math.round(f.loanAmount * 0.7))
+            setCounterRate(15)
+            setCounterDuration(9)
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load loan', e)
       }
       setView('DECISION')
-    }
-    setMounted(true)
+      setMounted(true)
+    })()
   }, [id, modeParam])
 
-  const handleSubmit = () => {
-    setSubmitted(true)
-    setTimeout(() => {
-      router.push('/lender')
-    }, 2000)
+  const handleSubmit = async () => {
+    setSubmitting(true)
+    try {
+      const token = getToken()
+      const body: Record<string, any> = { action: decision, loanId: farmer?.loanId }
+      if (decision === 'approve') {
+        body.amount = approvedAmount
+        body.interestRate = interestRate
+        body.duration = duration
+      } else if (decision === 'counter') {
+        body.amount = counterAmount
+        body.interestRate = counterRate
+        body.duration = counterDuration
+        body.reason = counterReason
+      } else if (decision === 'reject') {
+        body.reason = rejectReason
+      }
+      const res = await fetch('/api/lender/loans', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setSubmitted(true)
+      } else {
+        alert(data.error || 'Failed to submit decision')
+      }
+    } catch (e) {
+      console.error('Failed to submit decision', e)
+      alert('Something went wrong')
+    }
+    setSubmitting(false)
   }
 
   if (!mounted) return null
@@ -375,7 +444,8 @@ export default function ApproveLoanPage() {
                 'bg-red-500 text-white hover:bg-red-600'
               )}
             >
-              {decision === 'approve' ? 'Confirm Approval' :
+              {submitting ? 'Submitting...' :
+               decision === 'approve' ? 'Confirm Approval' :
                decision === 'counter' ? 'Send Counter-offer' :
                'Confirm Rejection'}
             </button>

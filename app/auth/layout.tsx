@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { Toaster } from 'sonner'
 
 export const metadata: Metadata = {
   title: 'Auth - Kilimo AI',
@@ -11,7 +12,18 @@ export default function AuthLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="relative z-10 min-h-screen bg-dark-base flex items-center justify-center p-4">
+    <>
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          style: {
+            background: '#1a1d24',
+            border: '1px solid rgba(255,255,255,0.06)',
+            color: '#e8edf5',
+          },
+        }}
+      />
+      <div className="relative z-10 min-h-screen bg-dark-base flex items-center justify-center p-4">
       <div className="w-full max-w-5xl">
         <div className="bg-dark-mid border border-border-subtle rounded-3xl overflow-hidden shadow-2xl">
           <div className="grid md:grid-cols-2">
@@ -58,6 +70,7 @@ export default function AuthLayout({
           &copy; {new Date().getFullYear()} Kilimo AI. Built for the Kenya AI Challenge 2026.
         </p>
       </div>
-    </div>
+      </div>
+    </>
   )
 }

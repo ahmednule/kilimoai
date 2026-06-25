@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { User, Mail, Building2, MapPin, Percent, Sprout, ChevronRight } from 'lucide-react'
+import { User, Mail, Building2, MapPin, Percent, Sprout, ChevronRight, AlertTriangle } from 'lucide-react'
 import { FarmerProfile, Language } from '@/lib/types'
 import { CROPS, KENYAN_COUNTIES } from '@/lib/constants'
 import { cn } from '@/lib/utils'
+import { getToken, getSession } from '@/lib/auth'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -14,6 +15,7 @@ export default function ProfilePage() {
   const [mounted, setMounted] = useState(false)
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   // Edit form state
   const [editCrop, setEditCrop] = useState('')
@@ -31,27 +33,60 @@ export default function ProfilePage() {
       try {
         const parsed: FarmerProfile = JSON.parse(savedProfile)
         setProfile(parsed)
-        setEditCrop(parsed.crop)
-        setEditAcres(String(parsed.acres))
-        setEditLang(parsed.language)
+        setEditCrop(parsed.crop || (parsed.crops?.[0]?.crop ?? ''))
+        setEditAcres(String(parsed.acres || parsed.crops?.reduce((s, c) => s + (c.acres || 0), 0) || ''))
+        setEditLang(parsed.language || 'en')
         setEditCounty(parsed.county)
-      } catch { /* corrupt */ }
+        setMounted(true)
+        return
+      } catch (e) {
+        console.error('[profile] corrupt localStorage', e)
+      }
     }
 
-    setMounted(true)
+    // Fallback: fetch from API
+    ;(async () => {
+      try {
+        const token = getToken()
+        const sess = getSession()
+        if (!token) {
+          setLoadError('Not authenticated')
+          setMounted(true)
+          return
+        }
+        const res = await fetch('/api/profile', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!res.ok) {
+          console.error('[profile] API returned', res.status)
+          setLoadError(`Failed to load (${res.status})`)
+        } else {
+          const data = await res.json()
+          if (data.success && data.profile) {
+            const p = data.profile as FarmerProfile
+            setProfile(p)
+            localStorage.setItem('kilimo-profile', JSON.stringify(p))
+            setEditCrop(p.crop || (p.crops?.[0]?.crop ?? ''))
+            setEditAcres(String(p.acres || p.crops?.reduce((s, c) => s + (c.acres || 0), 0) || ''))
+            setEditLang(p.language || 'en')
+            setEditCounty(p.county)
+          }
+        }
+      } catch (e) {
+        console.error('[profile] fetch failed', e)
+        setLoadError('Network error')
+      }
+      setMounted(true)
+    })()
   }, [])
-
-  if (!mounted) return null
-  if (!profile) return null
 
   const handleSave = () => {
     setSaving(true)
     const updated: FarmerProfile = {
-      ...profile,
-      crop: editCrop,
-      acres: parseFloat(editAcres) || profile.acres,
-      language: editLang,
+      name: profile?.name || getSession().name || '',
       county: editCounty,
+      crops: editCrop ? [{ crop: editCrop, acres: parseFloat(editAcres) || 0, isRented: false }] : [],
+      language: editLang,
     }
     localStorage.setItem('kilimo-profile', JSON.stringify(updated))
     localStorage.setItem('kilimo-language', editLang)
@@ -61,12 +96,31 @@ export default function ProfilePage() {
     setSaving(false)
   }
 
-  const initials = profile.name
-    ? profile.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
-    : '??'
+  if (!mounted) return null
 
-  const cropInfo = CROPS.find(c => c.value === profile.crop)
-  const cropLabel = cropInfo?.label[language] ?? profile.crop
+  if (loadError) {
+    return (
+      <div className="flex h-full items-center justify-center px-6">
+        <div className="text-center max-w-sm">
+          <AlertTriangle className="w-12 h-12 text-yellow-400/50 mx-auto mb-4" />
+          <h2 className="text-lg font-semibold text-text-primary mb-2">Could not load profile</h2>
+          <p className="text-sm text-text-muted mb-4">{loadError}</p>
+          <button onClick={() => window.location.reload()} className="px-4 py-2 rounded-lg bg-dark-mid border border-border-subtle text-sm text-text-primary hover:bg-dark-base">
+            Retry
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const currentCrop = profile?.crop || (profile?.crops?.[0]?.crop) || editCrop
+  const currentAcres = profile?.acres || profile?.crops?.reduce((s, c) => s + (c.acres || 0), 0) || parseFloat(editAcres) || 0
+  const initials = profile?.name
+    ? profile.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+    : getSession().name?.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase() || '??'
+
+  const cropInfo = CROPS.find(c => c.value === currentCrop)
+  const cropLabel = cropInfo?.label[language] ?? currentCrop
 
   return (
     <div className="p-8 space-y-6 h-full overflow-y-auto max-w-3xl">
@@ -83,9 +137,9 @@ export default function ProfilePage() {
           {initials}
         </div>
         <div className="flex-1 min-w-0">
-          <h2 className="text-lg font-semibold text-text-primary">{profile.name}</h2>
+          <h2 className="text-lg font-semibold text-text-primary">{profile?.name || getSession().name}</h2>
           <p className="text-sm text-text-muted">
-            {profile.county} &middot; {profile.acres} acres &middot; {cropLabel}
+            {editCounty || profile?.county || '—'} &middot; {currentAcres} acres &middot; {cropLabel || '—'}
           </p>
         </div>
       </div>
@@ -98,12 +152,13 @@ export default function ProfilePage() {
             <Sprout className="w-3.5 h-3.5 text-green-400" />
             {language === 'sw' ? 'Zao' : 'Crop'}
           </label>
-          {editing ? (
+          {editing || !profile ? (
             <select
               value={editCrop}
               onChange={e => setEditCrop(e.target.value)}
               className="w-full bg-dark-base border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-green-primary/50"
             >
+              <option value="">{language === 'sw' ? 'Chagua zao' : 'Select a crop'}</option>
               {CROPS.map(c => (
                 <option key={c.value} value={c.value}>{c.label[language]}</option>
               ))}
@@ -119,7 +174,7 @@ export default function ProfilePage() {
             <Percent className="w-3.5 h-3.5 text-green-400" />
             {language === 'sw' ? 'Ekari' : 'Acres'}
           </label>
-          {editing ? (
+          {editing || !profile ? (
             <input
               type="number"
               value={editAcres}
@@ -128,7 +183,7 @@ export default function ProfilePage() {
               className="w-full bg-dark-base border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-green-primary/50"
             />
           ) : (
-            <p className="text-sm text-text-muted">{profile.acres} acres</p>
+            <p className="text-sm text-text-muted">{currentAcres} acres</p>
           )}
         </div>
 
@@ -138,12 +193,13 @@ export default function ProfilePage() {
             <MapPin className="w-3.5 h-3.5 text-green-400" />
             {language === 'sw' ? 'Kaunti' : 'County'}
           </label>
-          {editing ? (
+          {editing || !profile ? (
             <select
               value={editCounty}
               onChange={e => setEditCounty(e.target.value)}
               className="w-full bg-dark-base border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-green-primary/50"
             >
+              <option value="">{language === 'sw' ? 'Chagua kaunti' : 'Select a county'}</option>
               {KENYAN_COUNTIES.map(c => (
                 <option key={c} value={c}>{c}</option>
               ))}
@@ -159,7 +215,7 @@ export default function ProfilePage() {
             <Mail className="w-3.5 h-3.5 text-green-400" />
             {language === 'sw' ? 'Lugha' : 'Language'}
           </label>
-          {editing ? (
+          {editing || !profile ? (
             <select
               value={editLang}
               onChange={e => setEditLang(e.target.value as Language)}
@@ -186,23 +242,25 @@ export default function ProfilePage() {
 
         {/* Save / edit */}
         <div className="pt-4 flex items-center gap-3">
-          {editing ? (
+          {editing || !profile ? (
             <>
               <button
                 onClick={handleSave}
-                disabled={saving}
+                disabled={saving || !editCrop || !editCounty}
                 className="px-5 py-2 bg-green-primary text-white rounded-lg text-sm font-medium hover:bg-green-primary/90 transition-colors disabled:opacity-50"
               >
                 {saving
                   ? (language === 'sw' ? 'Inahifadhi...' : 'Saving...')
-                  : (language === 'sw' ? 'Hifadhi mabadiliko' : 'Save changes')}
+                  : (language === 'sw' ? 'Hifadhi' : 'Save')}
               </button>
-              <button
-                onClick={() => setEditing(false)}
-                className="px-4 py-2 border border-border-subtle rounded-lg text-sm text-text-muted hover:text-text-primary transition-colors"
-              >
-                {language === 'sw' ? 'Ghairi' : 'Cancel'}
-              </button>
+              {profile && (
+                <button
+                  onClick={() => { setEditing(false); setEditCrop(profile.crop || ''); setEditAcres(String(profile.acres || '')); setEditLang(profile.language); setEditCounty(profile.county) }}
+                  className="px-4 py-2 border border-border-subtle rounded-lg text-sm text-text-muted hover:text-text-primary transition-colors"
+                >
+                  {language === 'sw' ? 'Ghairi' : 'Cancel'}
+                </button>
+              )}
             </>
           ) : (
             <button

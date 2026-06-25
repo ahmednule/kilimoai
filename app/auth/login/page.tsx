@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Eye, EyeOff, Loader2, Mail } from 'lucide-react'
+import { toast } from 'sonner'
 import { login, getDashboardPath } from '@/lib/auth'
 import { getLanguage, Language } from '@/lib/i18n'
 
@@ -14,12 +15,9 @@ const UI_TEXT = {
     email: 'Email',
     emailPlaceholder: 'farmer@kilimo.com',
     password: 'Password',
-    showPassword: 'Show password',
-    hidePassword: 'Hide password',
     login: 'Log In',
     loggingIn: 'Logging in...',
     forgotPassword: 'Forgot password?',
-    forgotComingSoon: 'Password reset is coming soon!',
     googleSignIn: 'Continue with Google',
     orContinue: 'or continue with',
     noAccount: "Don't have an account?",
@@ -27,6 +25,8 @@ const UI_TEXT = {
     googleComingSoon: 'Google sign-in is coming soon!',
     fillBoth: 'Please enter both email and password',
     loginFailed: 'Login failed',
+    verifyFirst: 'Verify your email first. Check your inbox.',
+    resendVerify: 'Resend verification email',
   },
   sw: {
     title: 'Karibu tena',
@@ -34,12 +34,9 @@ const UI_TEXT = {
     email: 'Barua pepe',
     emailPlaceholder: 'farmer@kilimo.com',
     password: 'Nenosiri',
-    showPassword: 'Onyesha nenosiri',
-    hidePassword: 'Ficha nenosiri',
     login: 'Ingia',
     loggingIn: 'Inaingia...',
     forgotPassword: 'Umesahau nenosiri?',
-    forgotComingSoon: 'Kuweka upya nenosiri kunakuja hivi karibuni!',
     googleSignIn: 'Endelea na Google',
     orContinue: 'au endelea na',
     noAccount: 'Huna akaunti?',
@@ -47,6 +44,8 @@ const UI_TEXT = {
     googleComingSoon: 'Kuingia kwa Google kunakuja hivi karibuni!',
     fillBoth: 'Tafadhali ingiza barua pepe na nenosiri',
     loginFailed: 'Imeshindwa kuingia',
+    verifyFirst: 'Thibitisha barua pepe yako kwanza. Angalia kikasha chako.',
+    resendVerify: 'Tuma tena barua pepe ya uthibitisho',
   }
 }
 
@@ -57,7 +56,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
 
   useEffect(() => {
     setLang(getLanguage())
@@ -67,10 +65,9 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
 
     if (!email.trim() || !password) {
-      setError(t.fillBoth)
+      toast.error(t.fillBoth)
       return
     }
 
@@ -82,12 +79,12 @@ export default function LoginPage() {
       const session = JSON.parse(localStorage.getItem('kilimo-session') || '{}')
       router.push(getDashboardPath(session.role))
     } else {
-      setError(result.error || t.loginFailed)
+      toast.error(result.error || t.loginFailed)
     }
   }
 
   const handleGoogleClick = () => {
-    alert(lang === 'sw' ? 'Kuingia kwa Google kunakuja hivi karibuni!' : 'Google sign-in is coming soon!')
+    toast.info(t.googleComingSoon)
   }
 
   return (
@@ -97,25 +94,22 @@ export default function LoginPage() {
         <p className="mt-1 text-sm text-text-muted">{t.subtitle}</p>
       </div>
 
-      {error && (
-        <div className="mb-6 rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400">
-          {error}
-        </div>
-      )}
-
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-text-secondary mb-1.5">
             {t.email}
           </label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder={t.emailPlaceholder}
-            className="w-full h-11 rounded-lg border border-border-subtle bg-dark-base px-4 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-green-primary/40 focus:border-green-primary/40 transition-all"
-          />
+          <div className="relative">
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder={t.emailPlaceholder}
+              className="w-full h-11 rounded-lg border border-border-subtle bg-dark-base pl-10 pr-4 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-green-primary/40 focus:border-green-primary/40 transition-all"
+            />
+          </div>
         </div>
 
         <div>
@@ -134,7 +128,7 @@ export default function LoginPage() {
               type="button"
               onClick={() => setShowPw(!showPw)}
               className="absolute right-1 top-1 bottom-1 w-10 flex items-center justify-center rounded-r-lg text-text-muted hover:text-text-primary transition-colors"
-              aria-label={showPw ? t.hidePassword : t.showPassword}
+              aria-label={showPw ? 'Hide password' : 'Show password'}
             >
               {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>

@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
 
       if (county && county !== 'ALL') {
         query = `
-          MATCH (c:Chama {county: $county})
+          MATCH (c:ChamaGroup {county: $county})
           WHERE toLower(c.name) CONTAINS toLower($search)
           RETURN c
           ORDER BY c.totalSavings DESC
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
         params = { county, search }
       } else {
         query = `
-          MATCH (c:Chama)
+          MATCH (c:ChamaGroup)
           WHERE toLower(c.name) CONTAINS toLower($search)
           RETURN c
           ORDER BY c.totalSavings DESC
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
     const session = getSession()
     try {
       await session.run(
-        `CREATE (c:Chama {
+        `CREATE (c:ChamaGroup {
           id: $id,
           name: $name,
           county: $county,
@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
       )
 
       await session.run(
-        `MATCH (u:User {id: $userId}), (c:Chama {id: $chamaId})
+        `MATCH (u:User {id: $userId}), (c:ChamaGroup {id: $chamaId})
          MERGE (u)-[r:BELONGS_TO]->(c)
          SET r.status = 'ACTIVE', r.totalContributed = 0, r.joinedAt = datetime()`,
         { userId: user.id, chamaId }

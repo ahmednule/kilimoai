@@ -1,24 +1,22 @@
 'use client'
 
-import { useState, useRef, useEffect, KeyboardEvent } from 'react'
+import { useState, useRef, useEffect, useCallback, KeyboardEvent } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Send } from 'lucide-react'
-import { ChatMessage as ChatMessageType, FarmerProfile, Language, RiskLevel, ScenarioResult } from '@/lib/types'
+import { Send, Camera, X, Trash2 } from 'lucide-react'
+import { ChatMessage as ChatMessageType, FarmerProfile, Language, RiskLevel, ScenarioResult, PestScanResult } from '@/lib/types'
 import { QUICK_REPLIES, UI_TEXT, CROPS } from '@/lib/constants'
 import { ChatMessage } from './ChatMessage'
 import { TypingIndicator } from './TypingIndicator'
 import { LanguageToggle } from '@/components/shared/LanguageToggle'
 import { cn } from '@/lib/utils'
+import { getChatMessages, saveChatMessages, clearChatMessages } from '@/lib/chat'
 
 interface ChatPanelProps {
   profile: FarmerProfile
   language: Language
   onLanguageChange: (lang: Language) => void
-  /** Called when the AI returns a risk level so the parent can update the tracker */
   onRiskUpdate: (level: RiskLevel) => void
-  /** Called each time a step is completed */
   onStepComplete: (stepId: number) => void
-  /** Called when the AI returns scenario results so the parent can persist them */
   onScenarioResult?: (scenarios: ScenarioResult) => void
 }
 
@@ -27,13 +25,7 @@ function parseScenarioJSON(text: string): ScenarioResult | null {
   if (!jsonMatch) return null
   try {
     const parsed = JSON.parse(jsonMatch[1])
-    if (
-      parsed.riskLevel &&
-      parsed.verdict &&
-      parsed.bestCase &&
-      parsed.expectedCase &&
-      parsed.worstCase
-    ) {
+    if (parsed.riskLevel && parsed.verdict && parsed.bestCase && parsed.expectedCase && parsed.worstCase) {
       return parsed as ScenarioResult
     }
     return null
@@ -44,12 +36,10 @@ function parseScenarioJSON(text: string): ScenarioResult | null {
 
 function buildCropSummary(crops: { crop: string; acres: number }[], lang: Language): string {
   if (!crops.length) return ''
-  return crops
-    .map(c => {
-      const label = CROPS.find(x => x.value === c.crop)?.label[lang] ?? c.crop
-      return `${label} (${c.acres} ac)`
-    })
-    .join(', ')
+  return crops.map(c => {
+    const label = CROPS.find(x => x.value === c.crop)?.label[lang] ?? c.crop
+    return `${label} (${c.acres} ac)`
+  }).join(', ')
 }
 
 export function ChatPanel({
@@ -60,34 +50,54 @@ export function ChatPanel({
   onStepComplete,
   onScenarioResult,
 }: ChatPanelProps) {
-  const [messages, setMessages]   = useState<ChatMessageType[]>([])
+  const [messages, setMessages] = useState<ChatMessageType[]>(() => {
+    const saved = getChatMessages()
+    return saved.length > 0 ? saved : []
+  })
   const [isLoading, setIsLoading] = useState(false)
-  const [draft, setDraft]         = useState('')
-  const messagesEndRef             = useRef<HTMLDivElement>(null)
-  const textareaRef                = useRef<HTMLTextAreaElement>(null)
-  const t                          = UI_TEXT[language]
-  const quickReplies               = QUICK_REPLIES[language]
+  const [draft, setDraft] = useState('')
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [isScanning, setIsScanning] = useState(false)
+  const [initialized, setInitialized] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const t = UI_TEXT[language]
+  const quickReplies = QUICK_REPLIES[language]
+
   const totalAcres = profile.crops.reduce((s, c) => s + c.acres, 0)
   const cropSummary = buildCropSummary(profile.crops, language)
+  const rentDetail = profile.rentedAcres && profile.rentedAcres > 0
+    ? `, ${profile.rentedAcres} rented at KES ${profile.rentCostPerAcre || 0}/acre`
+    : ''
 
-  // Auto-scroll to newest message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isLoading])
 
-  // Initial greeting
+  // Auto-save messages to localStorage whenever they change (skip initial load)
   useEffect(() => {
+    if (!initialized) {
+      setInitialized(true)
+      return
+    }
+    saveChatMessages(messages)
+  }, [messages, initialized])
+
+  // Add greeting only if no saved messages exist
+  useEffect(() => {
+    if (messages.length > 0) return
     const greeting = language === 'sw'
       ? `Habari ${profile.name}! Niko tayari kukusaidia. Unapanga kukopa kiasi gani kwa ${cropSummary}?`
-      : `Hello ${profile.name}! Ready to help you make the right call on your farm loan. You're growing ${cropSummary} on ${totalAcres} acres in ${profile.county} — how much are you looking to borrow?`
+      : `Hello ${profile.name}! Ready to help you make the right call on your farm loan. You're growing ${cropSummary} on ${totalAcres} acres${rentDetail} in ${profile.county} — how much are you looking to borrow?`
 
-    setMessages([{
-      id: '0',
-      role: 'assistant',
-      content: greeting,
-      timestamp: new Date(),
-    }])
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    setMessages([{ id: '0', role: 'assistant', content: greeting, timestamp: new Date() }])
+  }, [profile, cropSummary, totalAcres, language])
+
+  const handleClearHistory = useCallback(() => {
+    clearChatMessages()
+    setMessages([])
   }, [])
 
   const sendMessage = async (content: string) => {
@@ -117,7 +127,6 @@ export function ChatPanel({
       if (!res.ok) throw new Error('API error')
 
       const data = await res.json()
-
       const rawContent: string = data.message ?? data.reply ?? ''
       const scenarios = parseScenarioJSON(rawContent)
       const cleanContent = rawContent.replace(/```json[\s\S]*?```/, '').replace(/\n{3,}/g, '\n\n').trim()
@@ -134,7 +143,7 @@ export function ChatPanel({
 
       if (scenarios?.riskLevel) {
         onRiskUpdate(scenarios.riskLevel)
-        onStepComplete(4) // risk analysis done
+        onStepComplete(4)
         onScenarioResult?.(scenarios)
       }
     } catch {
@@ -151,6 +160,91 @@ export function ChatPanel({
     }
   }
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setSelectedFile(file)
+    const reader = new FileReader()
+    reader.onload = () => setSelectedImage(reader.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  const scanImage = async () => {
+    if (!selectedImage || isScanning) return
+    setIsScanning(true)
+
+    const imageUrl = selectedImage
+    const userMsg: ChatMessageType = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: language === 'sw'
+        ? '[Kuchambua picha ya mmea...]'
+        : '[Scanning crop image...]',
+      timestamp: new Date(),
+      imageUrl,
+    }
+    setMessages(prev => [...prev, userMsg])
+    setSelectedImage(null)
+    setSelectedFile(null)
+
+    try {
+      const res = await fetch('/api/pest-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: imageUrl, source: 'authenticated' }),
+      })
+
+      if (!res.ok) throw new Error('Scan failed')
+
+      const data = await res.json()
+      const pestResult: PestScanResult = {
+        pest: data.pest,
+        confidence: data.confidence,
+        severity: data.severity,
+        recommendation: data.recommendation,
+        isPest: data.isPest ?? (data.severity === 'HIGH' || data.severity === 'MEDIUM'),
+        affectedCrops: data.affectedCrops,
+        commonName: data.commonName,
+        scientificName: data.scientificName,
+        treatment: data.treatment,
+      }
+
+      const scanSummary = language === 'sw'
+        ? `Uchambuzi wa picha umekamilika. Wadudu waliotambuliwa: **${data.pest}** (${data.confidence}% uhakika). Ukali: ${data.severity === 'HIGH' ? 'Juu' : data.severity === 'MEDIUM' ? 'Wastani' : 'Chini'}.`
+        : `Image analysis complete. Identified: **${data.pest}** (${data.confidence}% confidence). Severity: ${data.severity}.`
+
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: scanSummary,
+        timestamp: new Date(),
+        pestScan: pestResult,
+        imageUrl,
+      }])
+
+      const followUp = language === 'sw'
+        ? `Nimegundua ${data.pest} kwenye mazao yako. Ungependa kujua zaidi kuhusu matibabu au kinga?`
+        : `I spotted ${data.pest} on your crops. Would you like to know more about treatment or prevention?`
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 2).toString(),
+        role: 'assistant',
+        content: followUp,
+        timestamp: new Date(),
+      }])
+    } catch {
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: language === 'sw'
+          ? 'Samahani, uchambuzi wa picha ulishindwa. Tafadhali jaribu tena na picha iliyo wazi zaidi.'
+          : 'Sorry, the image analysis failed. Please try again with a clearer photo.',
+        timestamp: new Date(),
+      }])
+    } finally {
+      setIsScanning(false)
+    }
+  }
+
   const handleKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -158,21 +252,17 @@ export function ChatPanel({
     }
   }
 
-  const lastIsAssistant =
-    messages.length > 0 && messages[messages.length - 1].role === 'assistant'
+  const lastIsAssistant = messages.length > 0 && messages[messages.length - 1].role === 'assistant'
 
   return (
     <section className="flex-1 flex flex-col min-w-0 bg-dark-base overflow-hidden">
-
-      {/* Top bar */}
       <div className="flex items-center justify-between px-5 py-3 border-b border-border-subtle bg-dark-mid shrink-0">
         <p className="text-[13px] text-text-muted">
-          Chatting as <span className="text-text-primary font-medium">{profile.name}</span>
+          {language === 'sw' ? `Mazungumzo kama ${profile.name}` : `Chatting as ${profile.name}`}
         </p>
         <LanguageToggle language={language} onChange={onLanguageChange} />
       </div>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 scrollbar-thin scrollbar-thumb-border-subtle scrollbar-track-transparent">
         {messages.map(msg => (
           <ChatMessage key={msg.id} message={msg} language={language} />
@@ -180,14 +270,21 @@ export function ChatPanel({
 
         <AnimatePresence>
           {isLoading && <TypingIndicator language={language} />}
+          {isScanning && (
+            <div className="flex items-center gap-2 px-1">
+              <div className="animate-pulse w-5 h-5 rounded-full bg-green-primary/30" />
+              <span className="text-[12px] text-text-muted">
+                {language === 'sw' ? 'Inachambua picha...' : 'Analyzing image...'}
+              </span>
+            </div>
+          )}
         </AnimatePresence>
 
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Quick-reply chips */}
       <AnimatePresence>
-        {!isLoading && lastIsAssistant && (
+        {!isLoading && !isScanning && lastIsAssistant && (
           <motion.div
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
@@ -207,36 +304,107 @@ export function ChatPanel({
         )}
       </AnimatePresence>
 
-      {/* Input bar */}
-      <div className="px-5 py-3 border-t border-border-subtle bg-dark-mid shrink-0 flex items-center gap-3">
-        <textarea
-          ref={textareaRef}
-          value={draft}
-          onChange={e => setDraft(e.target.value)}
-          onKeyDown={handleKey}
-          placeholder={t.chatPlaceholder ?? 'Ask about your loan, risk, or crop…'}
-          rows={1}
-          disabled={isLoading}
-          className={cn(
-            'flex-1 resize-none bg-dark-base border border-border-subtle rounded-xl px-4 py-2.5 text-[13px] text-text-primary placeholder:text-text-muted/40',
-            'focus:outline-none focus:ring-1 focus:ring-green-primary/50 focus:border-green-primary',
-            'transition-all duration-150 min-h-[42px] max-h-[120px] leading-relaxed',
-            isLoading && 'opacity-50 cursor-not-allowed'
-          )}
-        />
-        <button
-          onClick={() => sendMessage(draft)}
-          disabled={!draft.trim() || isLoading}
-          aria-label="Send message"
-          className={cn(
-            'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-150',
-            draft.trim() && !isLoading
-              ? 'bg-green-primary hover:bg-green-primary/80'
-              : 'bg-green-primary/20 cursor-not-allowed'
-          )}
-        >
-          <Send className="w-4 h-4 text-green-100" />
-        </button>
+      <AnimatePresence>
+        {selectedImage && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="px-5 py-2 bg-dark-mid border-t border-border-subtle"
+          >
+            <div className="flex items-center gap-3">
+              <div className="relative w-14 h-14 rounded-lg overflow-hidden border border-border-subtle shrink-0 bg-dark-base">
+                <img src={selectedImage} alt="Selected" className="w-full h-full object-cover" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[12px] text-text-primary truncate">
+                  {selectedFile?.name ?? 'Crop image'}
+                </p>
+                <p className="text-[10px] text-text-muted">
+                  {selectedFile ? `${(selectedFile.size / 1024).toFixed(0)} KB` : ''}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={scanImage}
+                  disabled={isScanning}
+                  className={cn(
+                    'px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all duration-150',
+                    isScanning
+                      ? 'bg-green-primary/30 text-green-200 cursor-not-allowed'
+                      : 'bg-green-primary text-green-100 hover:bg-green-primary/80'
+                  )}
+                >
+                  {isScanning
+                    ? (language === 'sw' ? 'Inachambua...' : 'Scanning...')
+                    : (language === 'sw' ? 'Chambua Wadudu' : 'Scan Pest')
+                  }
+                </button>
+                <button
+                  onClick={() => { setSelectedImage(null); setSelectedFile(null) }}
+                  disabled={isScanning}
+                  className="p-1.5 rounded-lg hover:bg-text-primary/10 text-text-muted hover:text-text-primary transition-all"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="px-5 py-3 border-t border-border-subtle bg-dark-mid shrink-0">
+        <div className="flex items-center gap-3">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleImageSelect}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isLoading || isScanning}
+            aria-label="Upload crop image"
+            className={cn(
+              'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-150 border',
+              isScanning
+                ? 'border-border-subtle text-text-muted cursor-not-allowed'
+                : 'border-border-subtle text-green-400 hover:bg-green-primary/10 hover:border-green-primary/30'
+            )}
+          >
+            <Camera className="w-4 h-4" />
+          </button>
+          <textarea
+            ref={textareaRef}
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onKeyDown={handleKey}
+            placeholder={t.chatPlaceholder ?? 'Ask about your loan, risk, or crop…'}
+            rows={1}
+            disabled={isLoading || isScanning}
+            className={cn(
+              'flex-1 resize-none bg-dark-base border border-border-subtle rounded-xl px-4 py-2.5 text-[13px] text-text-primary placeholder:text-text-muted/40',
+              'focus:outline-none focus:ring-1 focus:ring-green-primary/50 focus:border-green-primary',
+              'transition-all duration-150 min-h-[42px] max-h-[120px] leading-relaxed',
+              (isLoading || isScanning) && 'opacity-50 cursor-not-allowed'
+            )}
+          />
+          <button
+            onClick={() => sendMessage(draft)}
+            disabled={!draft.trim() || isLoading || isScanning}
+            aria-label="Send message"
+            className={cn(
+              'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-150',
+              draft.trim() && !isLoading && !isScanning
+                ? 'bg-green-primary hover:bg-green-primary/80'
+                : 'bg-green-primary/20 cursor-not-allowed'
+            )}
+          >
+            <Send className="w-4 h-4 text-green-100" />
+          </button>
+        </div>
       </div>
     </section>
   )

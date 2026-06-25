@@ -17,21 +17,37 @@ export async function POST(req: NextRequest) {
     const session = getSession()
     const lowerEmail = email.toLowerCase()
 
+    // Traverse relationships for role + county (matches seed schema)
     const result = await session.run(
-      'MATCH (u:User {email: $email}) RETURN u',
+      `MATCH (u:User {email: $email})
+       OPTIONAL MATCH (u)-[:HAS_ROLE]->(r:Role)
+       OPTIONAL MATCH (u)-[:LOCATED_IN]->(co:County)
+       RETURN u, r.name AS roleName, co.name AS countyName`,
       { email: lowerEmail }
     )
 
     if (result.records.length === 0) {
       await session.close()
-      return NextResponse.json({ success: false, error: 'User not found' }, { status: 401 })
+      return NextResponse.json({ success: false, error: 'Account not found. Did you sign up?' }, { status: 401 })
     }
 
-    const user = result.records[0].get('u').properties
+    const record = result.records[0]
+    const user = record.get('u').properties
+    const roleName = record.get('roleName')
+    const countyName = record.get('countyName')
 
     if (user.password !== password) {
       await session.close()
       return NextResponse.json({ success: false, error: 'Incorrect password' }, { status: 401 })
+    }
+
+    if (user.verified !== true) {
+      await session.close()
+      return NextResponse.json({
+        success: false,
+        error: 'Please verify your email before logging in. Check your inbox for the verification link.',
+        needsVerification: true,
+      }, { status: 403 })
     }
 
     const sessionToken = generateToken()
@@ -49,8 +65,8 @@ export async function POST(req: NextRequest) {
       user: {
         name: user.name,
         email: user.email,
-        role: user.role,
-        county: user.county,
+        role: roleName,
+        county: countyName,
       }
     })
   } catch (err: any) {

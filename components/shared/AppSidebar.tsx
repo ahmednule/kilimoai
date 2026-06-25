@@ -8,7 +8,7 @@ import {
   Shield, BarChart3, Settings, FileText, Package, CalendarCheck,
 } from 'lucide-react'
 import { FarmerProfile, Language, RiskLevel } from '@/lib/types'
-import { getSession, type UserRole } from '@/lib/auth'
+import { getSession, getToken, type UserRole } from '@/lib/auth'
 import { CROPS } from '@/lib/constants'
 import { RiskBadge } from '@/components/shared/RiskBadge'
 import { cn } from '@/lib/utils'
@@ -94,7 +94,30 @@ export function AppSidebar() {
     if (savedProfile) {
       try {
         setProfile(JSON.parse(savedProfile))
-      } catch { /* corrupt */ }
+      } catch (e) {
+        console.error('[sidebar] corrupt localStorage profile', e)
+      }
+    } else {
+      // Fallback: fetch from API
+      ;(async () => {
+        try {
+          const token = getToken()
+          if (!token) return
+          const res = await fetch('/api/profile', {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          if (res.ok) {
+            const data = await res.json()
+            if (data.success && data.profile) {
+              const p = data.profile as FarmerProfile
+              setProfile(p)
+              localStorage.setItem('kilimo-profile', JSON.stringify(p))
+            }
+          }
+        } catch (e) {
+          console.error('[sidebar] profile fetch failed', e)
+        }
+      })()
     }
 
     const sess = getSession()
@@ -124,7 +147,9 @@ export function AppSidebar() {
     : Sprout
 
   const cropLabel = profile
-    ? CROPS.find(c => c.value === profile.crop)?.label[language] ?? profile.crop
+    ? (profile.crops && profile.crops.length > 0
+        ? (CROPS.find(c => c.value === profile.crops[0].crop)?.label[language] ?? profile.crops[0].crop)
+        : profile.crop || '')
     : ''
   const initials = profile?.name
     ? profile.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
@@ -132,6 +157,7 @@ export function AppSidebar() {
 
   const handleLogout = () => {
     localStorage.removeItem('kilimo-session')
+    localStorage.removeItem('kilimo-token')
     localStorage.removeItem('kilimo-profile')
     router.push('/auth/login')
   }
@@ -183,10 +209,20 @@ export function AppSidebar() {
           <p className="text-[11px] text-text-muted mt-0.5">{profile.county} · {cropLabel}</p>
           <div className="mt-2 pt-2 border-t border-border-subtle flex justify-between text-[11px]">
             <span className="text-text-muted/60">Acreage</span>
-            <span className="text-text-muted font-medium">{profile.acres} ac</span>
+            <span className="text-text-muted font-medium">{profile.acres ?? 0} ac</span>
           </div>
         </div>
-      ) : null}
+      ) : (
+        <div className="mx-3 mt-3 p-3 bg-dark-base rounded-xl border border-border-subtle">
+          <div className="w-9 h-9 rounded-full bg-dark-mid flex items-center justify-center text-xs font-semibold text-text-muted mb-2">
+            {initials}
+          </div>
+          <p className="text-sm font-medium text-text-primary leading-tight">
+            {getSession().name || 'Farmer'}
+          </p>
+          <p className="text-[11px] text-text-muted mt-0.5">{getSession().county || '—'}</p>
+        </div>
+      )}
 
       {/* Risk pill — farmer only */}
       {isFarmer && (

@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { RefreshCw } from 'lucide-react'
-import { FarmerProfile, Language, RiskLevel, ScenarioResult } from '@/lib/types'
+import { RefreshCw, AlertTriangle } from 'lucide-react'
+import { FarmerProfile, Language, RiskLevel, ScenarioResult, WeatherData } from '@/lib/types'
 import { ChatPanel } from '@/components/chat/ChatPanel'
-import { AssessmentTracker, AssessmentStep, WeatherData } from '@/components/chat/AssessmentTracker'
-import { COUNTY_COORDS } from '@/lib/constants'
+import { AssessmentTracker, AssessmentStep } from '@/components/chat/AssessmentTracker'
 import { saveAssessment, type StoredAssessment } from '@/lib/assessments'
+import { getToken } from '@/lib/auth'
+import { loadChatState, saveChatState } from '@/lib/chat'
 
 const INITIAL_STEPS: AssessmentStep[] = [
   { id: 1, label: 'Farm profile',   detail: '—',                            status: 'pending' },
@@ -23,16 +24,21 @@ export default function ChatPage() {
   const [profile,      setProfile]      = useState<FarmerProfile | null>(null)
   const [hydrated,     setHydrated]     = useState(false)
   const [language,     setLanguage]     = useState<Language>('en')
-  const [riskLevel,    setRiskLevel]    = useState<RiskLevel>('UNKNOWN')
-  const [steps,        setSteps]        = useState<AssessmentStep[]>(INITIAL_STEPS)
+  const [riskLevel,    setRiskLevel]    = useState<RiskLevel>(() => loadChatState<RiskLevel>('kilimo-chat-risk', 'UNKNOWN'))
+  const [steps,        setSteps]        = useState<AssessmentStep[]>(() => loadChatState<AssessmentStep[]>('kilimo-chat-steps', INITIAL_STEPS))
   const [weather,      setWeather]      = useState<WeatherData | null>(null)
-  const [resultsReady, setResultsReady] = useState(false)
+  const [resultsReady, setResultsReady] = useState(() => loadChatState<boolean>('kilimo-chat-result', false))
   const [recommendedLoanId, setRecommendedLoanId] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [chatKey, setChatKey] = useState(0)
 
-  // On mount: read profile + language from localStorage
-  // If no profile exists redirect to /profile so the user can fill it in
-  useEffect(() => {
-    const savedLang    = localStorage.getItem('kilimo-language') as Language | null
+  // Persist state changes to localStorage
+  useEffect(() => { saveChatState('kilimo-chat-risk', riskLevel) }, [riskLevel])
+  useEffect(() => { saveChatState('kilimo-chat-steps', steps) }, [steps])
+  useEffect(() => { saveChatState('kilimo-chat-result', resultsReady) }, [resultsReady])
+
+  const loadProfile = useCallback(async () => {
+    const savedLang = localStorage.getItem('kilimo-language') as Language | null
     const savedProfile = localStorage.getItem('kilimo-profile')
 
     if (savedLang) setLanguage(savedLang)
@@ -42,22 +48,52 @@ export default function ChatPage() {
         const parsed: FarmerProfile = JSON.parse(savedProfile)
         setProfile(parsed)
         if (parsed.language) setLanguage(parsed.language)
-      } catch {
-        // corrupt data — redirect to fill profile
-        router.replace('/profile')
+        setHydrated(true)
         return
+      } catch (e) {
+        console.error('[chat] corrupt localStorage profile', e)
       }
-    } else {
-      // No profile saved — send to /profile to complete setup
-      // Change this to '/auth/signup' if you'd rather gate on auth first
-      router.replace('/profile')
-      return
     }
 
+    // Fallback: try API
+    try {
+      const token = getToken()
+      if (!token) {
+        console.error('[chat] no auth token found')
+        setLoadError('Not authenticated')
+        setHydrated(true)
+        return
+      }
+      const res = await fetch('/api/profile', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) {
+        console.error('[chat] profile API returned', res.status)
+        setLoadError(`Failed to load profile (${res.status})`)
+        setHydrated(true)
+        return
+      }
+      const data = await res.json()
+      if (data.success && data.profile) {
+        const p = data.profile as FarmerProfile
+        setProfile(p)
+        localStorage.setItem('kilimo-profile', JSON.stringify(p))
+        if (p.language) setLanguage(p.language)
+      } else {
+        console.error('[chat] profile API error', data.error)
+        setLoadError(data.error || 'Profile not found')
+      }
+    } catch (e) {
+      console.error('[chat] profile fetch failed', e)
+      setLoadError('Network error loading profile')
+    }
     setHydrated(true)
-  }, [router])
+  }, [])
 
-  // Mark step 1 done + kick off weather fetch once profile lands
+  useEffect(() => {
+    loadProfile()
+  }, [loadProfile])
+
   useEffect(() => {
     if (!profile) return
 
@@ -73,51 +109,19 @@ export default function ChatPage() {
     ))
 
     fetchWeather(profile.county)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile])
 
-  const fmt = (d: Date) => d.toISOString().split('T')[0]
-
-  const getSeason = () => {
-    const m = new Date().getMonth() + 1
-    if (m >= 3  && m <= 5)  return 'Long rains season'
-    if (m >= 10 && m <= 12) return 'Short rains season'
-    return 'Dry season'
-  }
-
   const fetchWeather = async (county: string) => {
-    const coords = COUNTY_COORDS[county]
-    if (!coords) return
     try {
-      const { lat, lng } = coords
-      const end   = new Date()
-      const start = new Date()
-      start.setDate(start.getDate() - 90)
-
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=precipitation_sum&timezone=Africa%2FNairobi&start_date=${fmt(start)}&end_date=${fmt(end)}`
-      const res  = await fetch(url)
+      const res = await fetch(`/api/weather?county=${encodeURIComponent(county)}`)
       const data = await res.json()
-
-      const total: number = (data.daily?.precipitation_sum ?? [])
-        .reduce((sum: number, v: number | null) => sum + (v ?? 0), 0)
-
-      const rainfallMm  = Math.round(total)
-      const adequacyPct = Math.min(100, Math.round((rainfallMm / 400) * 100))
-
-      setWeather({
-        county,
-        rainfallMm,
-        periodDays:    90,
-        season:        getSeason(),
-        forecastLabel: rainfallMm >= 250
-          ? 'Good rains forecast'
-          : rainfallMm >= 150
-          ? 'Moderate rainfall'
-          : 'Low rainfall — caution',
-        adequacyPct,
-      })
-    } catch {
-      // silently skip — weather card shows "pending"
+      if (data.success && data.weather) {
+        setWeather(data.weather)
+      } else {
+        console.error('[chat] weather API error', data.error)
+      }
+    } catch (e) {
+      console.error('[chat] weather fetch failed', e)
     }
   }
 
@@ -127,7 +131,6 @@ export default function ChatPage() {
   }, [])
 
   const handleReset = useCallback(() => {
-    // "New assessment" keeps the profile but resets the conversation state
     setRiskLevel('UNKNOWN')
     setSteps(prev => prev.map((s, i) =>
       i === 0
@@ -138,6 +141,12 @@ export default function ChatPage() {
     ))
     setWeather(null)
     setResultsReady(false)
+    setChatKey(k => k + 1)
+    setRecommendedLoanId(null)
+    try { localStorage.removeItem('kilimo-chat-messages') } catch {}
+    try { localStorage.removeItem('kilimo-chat-steps') } catch {}
+    try { localStorage.removeItem('kilimo-chat-risk') } catch {}
+    try { localStorage.removeItem('kilimo-chat-result') } catch {}
   }, [])
 
   const handleRiskUpdate = useCallback((level: RiskLevel) => {
@@ -183,12 +192,55 @@ export default function ChatPage() {
     setRecommendedLoanId(null)
   }, [profile])
 
-if (!hydrated || !profile) return null
+  if (!hydrated) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <p className="text-text-muted text-sm">Loading...</p>
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex h-full items-center justify-center px-6">
+        <div className="text-center max-w-sm">
+          <AlertTriangle className="w-12 h-12 text-yellow-400/50 mx-auto mb-4" />
+          <h2 className="text-lg font-semibold text-text-primary mb-2">Could not load assessment</h2>
+          <p className="text-sm text-text-muted mb-4">{loadError}</p>
+          <button
+            onClick={loadProfile}
+            className="px-4 py-2 rounded-lg bg-dark-mid border border-border-subtle text-sm text-text-primary hover:bg-dark-base"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!profile) {
+    return (
+      <div className="flex h-full items-center justify-center px-6">
+        <div className="text-center max-w-sm">
+          <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-dark-mid border border-border-subtle flex items-center justify-center">
+            <RefreshCw className="w-6 h-6 text-text-muted/25" />
+          </div>
+          <h2 className="text-lg font-semibold text-text-primary mb-2">No farm profile found</h2>
+          <p className="text-sm text-text-muted mb-4">Please set up your farm profile before starting an assessment.</p>
+          <button
+            onClick={() => router.push('/profile')}
+            className="px-4 py-2.5 rounded-xl bg-green-primary text-green-100 text-sm font-medium hover:bg-green-light transition-colors"
+          >
+            Go to Profile
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-full">
       <div className="flex-1 flex flex-col min-w-0">
-        {/* New assessment header */}
         <div className="flex items-center justify-between px-6 py-3 border-b border-border-subtle shrink-0">
           <h2 className="font-serif text-lg font-semibold text-text-primary">Loan Assessment</h2>
           <button
@@ -202,6 +254,7 @@ if (!hydrated || !profile) return null
 
         <div className="flex flex-1 min-h-0 overflow-hidden">
           <ChatPanel
+            key={chatKey}
             profile={profile}
             language={language}
             onLanguageChange={handleLanguageChange}

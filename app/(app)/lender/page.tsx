@@ -9,54 +9,28 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { KENYAN_COUNTIES } from '@/lib/constants'
-import { LoanApplication, RiskLevel, Language } from '@/lib/types'
-import { getSession } from '@/lib/auth'
+import { RiskLevel, Language } from '@/lib/types'
+import { getSession, getToken } from '@/lib/auth'
 import { t, getLanguage } from '@/lib/i18n'
 
 type View = 'LOADING' | 'UNAUTHORIZED' | 'DASHBOARD'
 
-const MOCK_APPLICATIONS: LoanApplication[] = [
-  {
-    id: 'app-1', farmerId: 'f-1', farmerName: 'Samuel Mwangi', county: 'Nyeri',
-    crop: 'coffee', acres: 3, loanAmount: 85000, riskLevel: 'LOW', riskScore: 18,
-    status: 'PENDING', appliedAt: '2026-06-18T08:30:00Z',
-  },
-  {
-    id: 'app-2', farmerId: 'f-2', farmerName: 'Grace Akinyi', county: 'Kisumu',
-    crop: 'rice', acres: 5, loanAmount: 120000, riskLevel: 'MEDIUM', riskScore: 45,
-    status: 'PENDING', appliedAt: '2026-06-17T14:00:00Z',
-  },
-  {
-    id: 'app-3', farmerId: 'f-3', farmerName: 'Peter Kamau', county: 'Nakuru',
-    crop: 'maize', acres: 10, loanAmount: 200000, riskLevel: 'HIGH', riskScore: 72,
-    status: 'PENDING', appliedAt: '2026-06-16T10:15:00Z',
-  },
-  {
-    id: 'app-4', farmerId: 'f-4', farmerName: 'Jane Wanjiku', county: 'Kiambu',
-    crop: 'tea', acres: 2, loanAmount: 45000, riskLevel: 'LOW', riskScore: 12,
-    status: 'APPROVED', appliedAt: '2026-06-10T09:00:00Z',
-  },
-  {
-    id: 'app-5', farmerId: 'f-5', farmerName: 'David Ochieng', county: 'Migori',
-    crop: 'sorghum', acres: 6, loanAmount: 95000, riskLevel: 'MEDIUM', riskScore: 52,
-    status: 'COUNTERED', appliedAt: '2026-06-12T11:45:00Z',
-  },
-  {
-    id: 'app-6', farmerId: 'f-6', farmerName: 'Mary Wambui', county: 'Nyeri',
-    crop: 'beans', acres: 4, loanAmount: 65000, riskLevel: 'MEDIUM', riskScore: 38,
-    status: 'REJECTED', appliedAt: '2026-06-08T16:20:00Z',
-  },
-  {
-    id: 'app-7', farmerId: 'f-7', farmerName: 'Joseph Kiprotich', county: 'Uasin Gishu',
-    crop: 'wheat', acres: 15, loanAmount: 350000, riskLevel: 'LOW', riskScore: 22,
-    status: 'PENDING', appliedAt: '2026-06-19T07:00:00Z',
-  },
-  {
-    id: 'app-8', farmerId: 'f-8', farmerName: 'Amina Hassan', county: 'Mombasa',
-    crop: 'tomatoes', acres: 1, loanAmount: 30000, riskLevel: 'LOW', riskScore: 10,
-    status: 'APPROVED', appliedAt: '2026-06-05T13:30:00Z',
-  },
-]
+interface ApiLoan {
+  id: string
+  farmerId: string
+  farmerName: string
+  farmerPhone: string
+  county: string
+  crops: string[]
+  acreage: number
+  loanAmount: number
+  riskScore: number
+  creditScore: number
+  status: string
+  hasChama: boolean
+  chamaName: string | null
+  createdAt: string
+}
 
 const RISK_CONFIG: Record<RiskLevel, { color: string; bg: string; border: string; bar: string; labelKey: string }> = {
   LOW:     { color: 'text-risk-low', bg: 'bg-risk-low/10', border: 'border-risk-low/30', bar: 'bg-risk-low', labelKey: 'lender.risk.low' },
@@ -78,15 +52,20 @@ const SORT_KEYS = [
   { key: 'risk' as const, labelKey: 'lender.sort.risk' },
 ]
 
-const formatDate = (d: string) => new Date(d).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
+  const formatDate = (d: string) => new Date(d).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
 const formatKES = (n: number) => `${t('currency.ksh')} ${n.toLocaleString('en-KE')}`
+const toRiskLevel = (score: number): RiskLevel => score <= 25 ? 'LOW' : score <= 55 ? 'MEDIUM' : score > 75 ? 'UNKNOWN' : 'HIGH'
+const toStatus = (s: string): string => {
+  const map: Record<string, string> = { pending: 'PENDING', pending_verification: 'PENDING', approved: 'APPROVED', rejected: 'REJECTED', countered: 'COUNTERED', disbursed: 'APPROVED' }
+  return map[s.toLowerCase()] || s.toUpperCase()
+}
 
 export default function LenderDashboard() {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
   const [view, setView] = useState<View>('LOADING')
   const [language, setLanguage] = useState<Language>('en')
-  const [applications] = useState<LoanApplication[]>(MOCK_APPLICATIONS)
+  const [applications, setApplications] = useState<ApiLoan[]>([])
 
   const [countyFilter, setCountyFilter] = useState('ALL')
   const [statusFilter, setStatusFilter] = useState('ALL')
@@ -106,33 +85,50 @@ export default function LenderDashboard() {
     setMounted(true)
   }, [])
 
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const token = getToken()
+        const res = await fetch('/api/lender/loans', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setApplications(data.loans || [])
+        }
+      } catch (e) {
+        console.error('Failed to fetch loans', e)
+      }
+    })()
+  }, [])
+
   const filtered = useMemo(() => {
     return applications
       .filter(a => countyFilter === 'ALL' || a.county === countyFilter)
-      .filter(a => statusFilter === 'ALL' || a.status === statusFilter)
+      .filter(a => statusFilter === 'ALL' || toStatus(a.status) === statusFilter)
       .filter(a => {
         if (!searchTerm) return true
         const q = searchTerm.toLowerCase()
-        return a.farmerName.toLowerCase().includes(q) || a.county.toLowerCase().includes(q) || a.crop.toLowerCase().includes(q)
+        return a.farmerName.toLowerCase().includes(q) || a.county.toLowerCase().includes(q) || (a.crops || []).some(c => c.toLowerCase().includes(q))
       })
       .sort((a, b) => {
-        if (sortBy === 'date') return new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime()
+        if (sortBy === 'date') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         if (sortBy === 'amount') return b.loanAmount - a.loanAmount
         return a.riskScore - b.riskScore
       })
   }, [applications, countyFilter, statusFilter, searchTerm, sortBy])
 
   const stats = useMemo(() => {
-    const approved = applications.filter(a => a.status === 'APPROVED')
+    const approved = applications.filter(a => toStatus(a.status) === 'APPROVED')
     const avgRisk = applications.length > 0
       ? Math.round(applications.reduce((s, a) => s + a.riskScore, 0) / applications.length)
       : 0
     return {
       total: applications.length,
-      pending: applications.filter(a => a.status === 'PENDING').length,
+      pending: applications.filter(a => toStatus(a.status) === 'PENDING').length,
       approved: approved.length,
-      rejected: applications.filter(a => a.status === 'REJECTED').length,
-      countered: applications.filter(a => a.status === 'COUNTERED').length,
+      rejected: applications.filter(a => toStatus(a.status) === 'REJECTED').length,
+      countered: applications.filter(a => toStatus(a.status) === 'COUNTERED').length,
       disbursed: approved.reduce((acc, a) => acc + a.loanAmount, 0),
       avgRisk,
     }
@@ -283,8 +279,10 @@ export default function LenderDashboard() {
           </div>
         ) : (
           filtered.map((app, i) => {
-            const riskCfg = RISK_CONFIG[app.riskLevel]
-            const statusCfg = STATUS_CONFIG[app.status]
+            const riskLevel = toRiskLevel(app.riskScore)
+            const riskCfg = RISK_CONFIG[riskLevel]
+            const statusLabel = toStatus(app.status)
+            const statusCfg = STATUS_CONFIG[statusLabel] || STATUS_CONFIG.PENDING
             const StatusIcon = statusCfg.icon
             return (
               <div
@@ -301,13 +299,13 @@ export default function LenderDashboard() {
                         {app.farmerName}
                       </h3>
                       <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0', riskCfg.bg, riskCfg.color)}>
-                        {app.riskLevel}
+                        {riskLevel}
                       </span>
                     </div>
                     <div className="flex items-center gap-3 text-[11px] text-text-muted flex-wrap">
                       <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{app.county}</span>
-                      <span className="flex items-center gap-1"><Sprout className="w-3 h-3" />{app.crop}</span>
-                      <span>{app.acres} {tr('lender.acres')}</span>
+                      <span className="flex items-center gap-1"><Sprout className="w-3 h-3" />{app.crops?.join(', ') || ''}</span>
+                      <span>{app.acreage} {tr('lender.acres')}</span>
                     </div>
                   </div>
 
@@ -335,7 +333,7 @@ export default function LenderDashboard() {
                       </span>
                       <span className="text-[10px] text-text-muted flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        {formatDate(app.appliedAt)}
+                        {formatDate(app.createdAt)}
                       </span>
                     </div>
                     <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-all', riskCfg.bg, riskCfg.border, 'border group-hover:scale-110')}>

@@ -1,8 +1,9 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { useRouter } from 'next/navigation'
 import { ShieldCheck, TrendingDown, Sun, Droplets, ArrowRight, ClipboardCheck, Calculator, Coins, CheckCircle2, AlertTriangle, BarChart3 } from 'lucide-react'
-import Link from 'next/link'
 import { FabButton } from '@/components/chatbot/FabButton'
 import { useLanguage, FloatingOrb, FadeInView, TiltCard } from '@/components/marketing/shared'
 
@@ -57,7 +58,13 @@ const UI_TEXT = {
 
 export default function LoansPage() {
   const { language } = useLanguage()
+  const router = useRouter()
   const t = UI_TEXT[language]
+
+  const [hasProfile, setHasProfile] = useState(false)
+  useEffect(() => {
+    setHasProfile(!!localStorage.getItem('kilimo-profile'))
+  }, [])
 
   const scenarios = [
     { icon: TrendingDown, title: t.bestTitle, desc: t.bestDesc, color: '#22C55E', border: 'border-risk-low/30', bg: 'bg-risk-low/5' },
@@ -141,13 +148,13 @@ export default function LoansPage() {
         <div className="max-w-3xl mx-auto px-4 text-center">
           <FadeInView>
             <p className="text-text-muted text-sm mb-4">{t.ctaSub}</p>
-            <Link
-              href="/chat"
-              className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-gold-harvest text-dark-base font-semibold rounded-xl hover:bg-gold-harvest/90 transition-all hover:scale-105 shadow-lg shadow-gold-harvest/20"
+            <button
+              onClick={() => router.push(hasProfile ? '/chat' : '/auth/login')}
+              className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-gold-harvest text-dark-base font-semibold rounded-xl hover:bg-gold-harvest/90 transition-all hover:scale-105 shadow-lg shadow-gold-harvest/20 cursor-pointer"
             >
               {t.cta}
               <ArrowRight className="w-5 h-5" />
-            </Link>
+            </button>
           </FadeInView>
         </div>
       </section>
