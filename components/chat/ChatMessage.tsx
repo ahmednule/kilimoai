@@ -68,7 +68,7 @@ export function ChatMessage({ message, language }: ChatMessageProps) {
       )}
     >
       <div className={cn(
-        "max-w-[85%] sm:max-w-[75%]",
+        message.scenarios ? "max-w-full w-full" : "max-w-[85%] sm:max-w-[75%]",
         isUser ? "order-1" : "order-2"
       )}>
         <div

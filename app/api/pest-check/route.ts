@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     }
 
     const baseUrl = process.env.FEATHERLESS_BASE_URL || 'https://api.featherless.ai/v1'
-    const model = process.env.FEATHERLESS_VISION_MODEL || 'Qwen/Qwen3-VL-8B-Instruct'
+    const model = process.env.FEATHERLESS_VISION_MODEL || 'meta-llama/Llama-3.2-11B-Vision-Instruct'
     const url = `${baseUrl}/chat/completions`
 
     const response = await fetch(url, {
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
     if (!response.ok) {
       const errorText = await response.text()
 
-      if (/does not support image/i.test(errorText)) {
+      if (/does not support image|cannot read/i.test(errorText)) {
         return NextResponse.json(
           { error: `Model "${model}" does not support image input. Set FEATHERLESS_VISION_MODEL to a vision-capable model (e.g. meta-llama/Llama-3.2-11B-Vision-Instruct).` },
           { status: 400 }

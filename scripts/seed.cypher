@@ -296,30 +296,52 @@ CREATE (:ChamaGroup {
   id: 'ch-1',
   name: 'Mwiki Farmers',
   county: 'Kiambu',
-  members: 15,
+  description: 'Mwiki community farming group focused on maize and vegetables.',
+  registrationFee: 500,
+  memberCount: 15,
   totalSavings: 450000,
   activeLoans: 3,
-  repaymentRate: 94
+  repaymentRate: 94,
+  createdAt: datetime()
 });
 
 CREATE (:ChamaGroup {
   id: 'ch-2',
   name: 'Umoja Women Group',
   county: 'Kisumu',
-  members: 20,
+  description: 'Women-led farming cooperative in Kisumu county.',
+  registrationFee: 300,
+  memberCount: 20,
   totalSavings: 320000,
   activeLoans: 2,
-  repaymentRate: 88
+  repaymentRate: 88,
+  createdAt: datetime()
 });
 
 CREATE (:ChamaGroup {
   id: 'ch-3',
   name: 'Nyeri Coffee Co-op',
   county: 'Nyeri',
-  members: 25,
+  description: 'Coffee farming cooperative in the highlands of Nyeri.',
+  registrationFee: 1000,
+  memberCount: 25,
   totalSavings: 750000,
   activeLoans: 4,
-  repaymentRate: 96
+  repaymentRate: 96,
+  createdAt: datetime()
+});
+
+CREATE (:ChamaGroup {
+  id: 'ch-4',
+  name: 'Mercy Corps Sustainable Agriculture Group',
+  county: 'Meru',
+  description: 'Official chama for tracking your farming journey. Access fair loans, group savings, and market linkages.',
+  registrationFee: 0,
+  memberCount: 1,
+  totalSavings: 0,
+  activeLoans: 0,
+  repaymentRate: 0.94,
+  createdAt: datetime()
 });
 
 // ============================================================
@@ -594,11 +616,14 @@ CREATE (fp)-[:HAS_LOAN]->(la);
 MATCH (fp:FarmerProfile {id: 'fp-6'}), (la:LoanApplication {id: 'la-6'})
 CREATE (fp)-[:HAS_LOAN]->(la);
 
-MATCH (fp:FarmerProfile {id: 'fp-1'}), (ch:ChamaGroup {id: 'ch-1'})
-CREATE (fp)-[:MEMBER_OF]->(ch);
+MATCH (u:User {id: 'u-farmer'}), (ch:ChamaGroup {id: 'ch-1'})
+CREATE (u)-[:BELONGS_TO {id: 'mem-ch-1-u-farmer', status: 'ACTIVE', totalContributed: 15000, joinedAt: datetime()}]->(ch);
 
-MATCH (fp:FarmerProfile {id: 'fp-2'}), (ch:ChamaGroup {id: 'ch-2'})
-CREATE (fp)-[:MEMBER_OF]->(ch);
+MATCH (u:User {id: 'u-admin'}), (ch:ChamaGroup {id: 'ch-2'})
+CREATE (u)-[:BELONGS_TO {id: 'mem-ch-2-u-admin', status: 'ACTIVE', totalContributed: 8000, joinedAt: datetime()}]->(ch);
 
-MATCH (fp:FarmerProfile {id: 'fp-3'}), (ch:ChamaGroup {id: 'ch-3'})
-CREATE (fp)-[:MEMBER_OF]->(ch);
+MATCH (u:User {id: 'u-agent'}), (ch:ChamaGroup {id: 'ch-3'})
+CREATE (u)-[:BELONGS_TO {id: 'mem-ch-3-u-agent', status: 'ACTIVE', totalContributed: 22000, joinedAt: datetime()}]->(ch);
+
+MATCH (u:User {id: 'u-farmer'}), (ch:ChamaGroup {id: 'ch-4'})
+CREATE (u)-[:BELONGS_TO {id: 'mem-ch-4-u-farmer', status: 'ACTIVE', totalContributed: 0, joinedAt: datetime()}]->(ch);

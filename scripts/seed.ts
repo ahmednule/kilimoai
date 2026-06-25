@@ -124,7 +124,7 @@ async function main() {
       { label: 'HAS_PROFILE', query: 'MATCH ()-[r:HAS_PROFILE]->() RETURN count(r) AS c' },
       { label: 'HAS_ASSESSMENT', query: 'MATCH ()-[r:HAS_ASSESSMENT]->() RETURN count(r) AS c' },
       { label: 'HAS_LOAN', query: 'MATCH ()-[r:HAS_LOAN]->() RETURN count(r) AS c' },
-      { label: 'MEMBER_OF', query: 'MATCH ()-[r:MEMBER_OF]->() RETURN count(r) AS c' },
+      { label: 'BELONGS_TO', query: 'MATCH ()-[r:BELONGS_TO]->() RETURN count(r) AS c' },
     ]
 
     for (const { label, query } of counts) {

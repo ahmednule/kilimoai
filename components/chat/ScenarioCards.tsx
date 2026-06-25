@@ -71,7 +71,7 @@ function CaseCard({
         stiffness: 100,
       }}
       className={cn(
-        "min-w-[260px] sm:min-w-[280px] bg-dark-mid rounded-2xl p-5 border-2",
+        "bg-dark-mid rounded-2xl p-5 border-2",
         c.borderColor,
         `shadow-lg ${c.glowColor}`
       )}
@@ -136,8 +136,8 @@ function CaseCard({
 
 export function ScenarioCards({ scenarios, language }: ScenarioCardsProps) {
   return (
-    <div className="mt-4 -mx-2 px-2 overflow-x-auto hide-scrollbar">
-      <div className="flex gap-4 pb-2">
+    <div className="mt-4 -mx-2 px-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <CaseCard type="best" data={scenarios.bestCase} index={0} language={language} />
         <CaseCard type="expected" data={scenarios.expectedCase} index={1} language={language} />
         <CaseCard type="worst" data={scenarios.worstCase} index={2} language={language} />

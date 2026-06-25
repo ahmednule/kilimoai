@@ -4,9 +4,11 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   Users, Coins, MapPin, Clock, HourglassIcon,
   Send, ArrowUpRight, Building2, BadgeCheck, Sprout,
-  UserPlus, Wallet, X,
+  UserPlus, Wallet, X, Plus,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
+import { getToken, getSession } from '@/lib/auth'
 import { Language, ChamaGroup, ChamaMember, ChamaContribution } from '@/lib/types'
 
 type View = 'LOADING' | 'UNAUTHENTICATED' | 'BROWSE' | 'PENDING' | 'MEMBER'
@@ -36,6 +38,14 @@ export default function ChamaPage() {
   const [submittingLoan, setSubmittingLoan] = useState(false)
   const [loanDone, setLoanDone] = useState('')
 
+  // Create chama modal
+  const [showCreate, setShowCreate] = useState(false)
+  const [createName, setCreateName] = useState('')
+  const [createCounty, setCreateCounty] = useState('')
+  const [createDesc, setCreateDesc] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [createDone, setCreateDone] = useState('')
+
   const t = {
     en: {
       badge: 'Chama',
@@ -64,6 +74,14 @@ export default function ChamaPage() {
       login: 'Sign in to access chama features.',
       allCaughtUp: 'No contributions yet. Make your first one!',
       noMembers: 'No other members yet.',
+      createChama: 'Create New Chama',
+      createTitle: 'Start Your Own Chama',
+      createName: 'Chama Name',
+      createCounty: 'County',
+      createDescPlaceholder: 'Short description...',
+      createFee: 'Registration Fee (KSh)',
+      createSubmitting: 'Creating...',
+      createSuccess: 'Chama created successfully!',
     },
     sw: {
       badge: 'Chama',
@@ -92,6 +110,14 @@ export default function ChamaPage() {
       login: 'Ingia ili kutumia huduma za chama.',
       allCaughtUp: 'Hakuna michango bado. Toa mchango wako wa kwanza!',
       noMembers: 'Hakuna wanachama wengine bado.',
+      createChama: 'Anzisha Chama Kipya',
+      createTitle: 'Anzisha Chama Chako Mwenyewe',
+      createName: 'Jina la Chama',
+      createCounty: 'Kaunti',
+      createDescPlaceholder: 'Maelezo mafupi...',
+      createFee: 'Ada ya Usajili (KSh)',
+      createSubmitting: 'Inaunda...',
+      createSuccess: 'Chama kimeanzishwa!',
     },
   }
 
@@ -100,19 +126,23 @@ export default function ChamaPage() {
   useEffect(() => {
     const savedLang = localStorage.getItem('kilimo-language') as Language | null
     if (savedLang) setLanguage(savedLang)
-    setSessionToken(localStorage.getItem('kilimo-session') || '')
-  }, [])
 
-  useEffect(() => {
-    if (!sessionToken) { setView('UNAUTHENTICATED'); return }
+    const session = getSession()
+    const token = getToken()
+    if (!session.isAuthenticated || !token) {
+      setView('UNAUTHENTICATED')
+      return
+    }
+    setSessionToken(token)
     loadData()
-  }, [sessionToken])
+  }, [])
 
   const headers = () => ({ Authorization: `Bearer ${sessionToken}` })
 
   async function loadData() {
     try {
       const chamaRes = await fetch('/api/chama?search=Mercy+Corps')
+      if (!chamaRes.ok) { setView('BROWSE'); setChama(null); return }
       const chamaData = await chamaRes.json()
       const found = chamaData.chamas?.[0]
       if (!found) { setView('BROWSE'); setChama(null); return }
@@ -132,7 +162,10 @@ export default function ChamaPage() {
           setView('PENDING')
         } else { setView('BROWSE') }
       } else { setView('BROWSE') }
-    } catch { setView('BROWSE') }
+    } catch {
+      setView('BROWSE')
+      toast.error('Failed to load chama data')
+    }
   }
 
   const loadMembers = useCallback(async (chamaId: string) => {
@@ -162,7 +195,8 @@ export default function ChamaPage() {
       })
       const data = await res.json()
       if (data.success) { setJoinedMsg(ui.joined); setView('PENDING') }
-    } catch {}
+      else toast.error(data.error || 'Failed to join chama')
+    } catch { toast.error('Network error. Please try again.') }
     setJoining(false)
   }
 
@@ -186,8 +220,8 @@ export default function ChamaPage() {
         const chamaData = await chamaRes.json()
         if (chamaData.chamas?.[0]) setChama(chamaData.chamas[0])
         setTimeout(() => { setShowContribute(false); setContributeDone('') }, 2000)
-      }
-    } catch {}
+      } else toast.error(data.error || 'Contribution failed')
+    } catch { toast.error('Network error. Please try again.') }
     setContributing(false)
   }
 
@@ -206,9 +240,28 @@ export default function ChamaPage() {
         setLoanAmount('')
         setLoanPurpose('')
         setTimeout(() => { setShowLoan(false); setLoanDone('') }, 2000)
-      }
-    } catch {}
+      } else toast.error(data.error || 'Loan application failed')
+    } catch { toast.error('Network error. Please try again.') }
     setSubmittingLoan(false)
+  }
+
+  async function handleCreate() {
+    if (!createName || !createCounty || !createDesc || creating) return
+    setCreating(true)
+    try {
+      const res = await fetch('/api/chama', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...headers() },
+        body: JSON.stringify({ name: createName, county: createCounty, description: createDesc, registrationFee: 0 }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setCreateDone(ui.createSuccess)
+        setChama(data.chama)
+        setTimeout(() => { setShowCreate(false); setCreateDone(''); loadData() }, 1500)
+      } else toast.error(data.error || 'Failed to create chama')
+    } catch { toast.error('Network error. Please try again.') }
+    setCreating(false)
   }
 
   // ─── RENDER ───
@@ -217,7 +270,16 @@ export default function ChamaPage() {
 
   if (view === 'UNAUTHENTICATED') return <div className="max-w-md mx-auto mt-20 text-center p-8"><Building2 className="w-12 h-12 text-text-muted mx-auto mb-4" /><p className="text-text-muted">{ui.login}</p></div>
 
-  if (!chama) return <div className="max-w-md mx-auto mt-20 text-center p-8"><p className="text-text-muted">{ui.noChama}</p></div>
+  if (!chama) return (
+    <div className="max-w-md mx-auto mt-20 text-center p-8">
+      <p className="text-text-muted mb-6">{ui.noChama}</p>
+      <button onClick={() => setShowCreate(true)}
+        className="flex items-center justify-center gap-2 mx-auto px-6 py-3 bg-dark-base text-text-primary font-semibold rounded-xl border border-border-subtle hover:border-green-primary/30 transition-all">
+        <Plus className="w-4 h-4" />
+        {ui.createChama}
+      </button>
+    </div>
+  )
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
@@ -260,11 +322,18 @@ export default function ChamaPage() {
         </div>
 
         {view === 'BROWSE' && !joinedMsg && (
-          <button onClick={handleJoin} disabled={joining}
-            className="mt-6 w-full flex items-center justify-center gap-2 px-6 py-3 bg-gold-harvest text-dark-base font-semibold rounded-xl hover:bg-gold-harvest/90 transition-all disabled:opacity-50">
-            <UserPlus className="w-4 h-4" />
-            {joining ? '...' : ui.join}
-          </button>
+          <div className="mt-6 flex flex-col sm:flex-row gap-3">
+            <button onClick={handleJoin} disabled={joining}
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gold-harvest text-dark-base font-semibold rounded-xl hover:bg-gold-harvest/90 transition-all disabled:opacity-50">
+              <UserPlus className="w-4 h-4" />
+              {joining ? '...' : ui.join}
+            </button>
+            <button onClick={() => setShowCreate(true)}
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-dark-base text-text-primary font-semibold rounded-xl border border-border-subtle hover:border-green-primary/30 transition-all">
+              <Plus className="w-4 h-4" />
+              {ui.createChama}
+            </button>
+          </div>
         )}
         {joinedMsg && <div className="mt-4 p-3 rounded-lg bg-green-primary/10 border border-green-primary/20 text-green-300 text-sm text-center">{joinedMsg}</div>}
       </div>
@@ -418,6 +487,43 @@ export default function ChamaPage() {
                 <button onClick={handleLoan} disabled={submittingLoan || !loanAmount}
                   className="w-full py-3 rounded-xl bg-gold-harvest text-dark-base font-semibold hover:bg-gold-harvest/90 transition-all disabled:opacity-50">
                   {submittingLoan ? '...' : ui.submitLoan}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Create Chama Modal */}
+      {showCreate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-dark-mid border border-border-subtle rounded-2xl p-6 w-full max-w-sm relative">
+            <button onClick={() => { setShowCreate(false); setCreateDone('') }} className="absolute top-4 right-4 text-text-muted hover:text-text-primary">
+              <X className="w-5 h-5" />
+            </button>
+            <h2 className="text-lg font-semibold text-text-primary mb-4">{ui.createTitle}</h2>
+            {createDone ? (
+              <p className="text-green-400 text-center py-4">{createDone}</p>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs text-text-muted mb-1 block">{ui.createName}</label>
+                  <input type="text" value={createName} onChange={e => setCreateName(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-lg bg-dark-base border border-border-subtle text-text-primary text-sm focus:outline-none focus:border-green-primary/50" placeholder="e.g. My Farmers Group" />
+                </div>
+                <div>
+                  <label className="text-xs text-text-muted mb-1 block">{ui.createCounty}</label>
+                  <input type="text" value={createCounty} onChange={e => setCreateCounty(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-lg bg-dark-base border border-border-subtle text-text-primary text-sm focus:outline-none focus:border-green-primary/50" placeholder="e.g. Kiambu" />
+                </div>
+                <div>
+                  <label className="text-xs text-text-muted mb-1 block">{language === 'sw' ? 'Maelezo' : 'Description'}</label>
+                  <textarea value={createDesc} onChange={e => setCreateDesc(e.target.value)} rows={3}
+                    className="w-full px-3 py-2.5 rounded-lg bg-dark-base border border-border-subtle text-text-primary text-sm focus:outline-none focus:border-green-primary/50 resize-none" placeholder={ui.createDescPlaceholder} />
+                </div>
+                <button onClick={handleCreate} disabled={creating || !createName || !createCounty || !createDesc}
+                  className="w-full py-3 rounded-xl bg-green-primary text-white font-semibold hover:bg-green-primary/90 transition-all disabled:opacity-50">
+                  {creating ? ui.createSubmitting : ui.createChama}
                 </button>
               </div>
             )}

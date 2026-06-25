@@ -30,6 +30,8 @@ export default function ChatPage() {
   const [resultsReady, setResultsReady] = useState(() => loadChatState<boolean>('kilimo-chat-result', false))
   const [recommendedLoanId, setRecommendedLoanId] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [latestVerdict, setLatestVerdict] = useState<string | null>(null)
+  const [latestRisk, setLatestRisk] = useState<string | null>(null)
   const [chatKey, setChatKey] = useState(0)
 
   // Persist state changes to localStorage
@@ -143,6 +145,8 @@ export default function ChatPage() {
     setResultsReady(false)
     setChatKey(k => k + 1)
     setRecommendedLoanId(null)
+    setLatestVerdict(null)
+    setLatestRisk(null)
     try { localStorage.removeItem('kilimo-chat-messages') } catch {}
     try { localStorage.removeItem('kilimo-chat-steps') } catch {}
     try { localStorage.removeItem('kilimo-chat-risk') } catch {}
@@ -190,6 +194,8 @@ export default function ChatPage() {
     }
     saveAssessment(assessment)
     setRecommendedLoanId(null)
+    setLatestVerdict(scenarios.verdict)
+    setLatestRisk(scenarios.riskLevel)
   }, [profile])
 
   if (!hydrated) {
@@ -270,6 +276,8 @@ export default function ChatPage() {
             weather={weather}
             resultsReady={resultsReady}
             recommendedLoanId={recommendedLoanId}
+            verdict={latestVerdict}
+            riskLevel={latestRisk}
           />
         </div>
       </div>

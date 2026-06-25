@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Check, CloudRain } from 'lucide-react'
+import { Check, CloudRain, AlertTriangle, ShieldCheck } from 'lucide-react'
 import { FarmerProfile, Language } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -29,6 +29,8 @@ interface AssessmentTrackerProps {
   weather: WeatherData | null
   resultsReady: boolean
   recommendedLoanId?: string | null
+  verdict?: string | null
+  riskLevel?: string | null
 }
 
 const STEP_COUNT = 5
@@ -62,6 +64,8 @@ export function AssessmentTracker({
   weather,
   resultsReady,
   recommendedLoanId,
+  verdict,
+  riskLevel,
 }: AssessmentTrackerProps) {
   const router = useRouter()
   const doneCount = steps.filter(s => s.status === 'done').length
@@ -156,26 +160,48 @@ export function AssessmentTracker({
         </div>
       )}
 
-      {/* Footer CTA */}
-      <div className="px-3 pb-4">
-        <button
-          onClick={() => {
-            if (resultsReady) {
+      {/* Result card */}
+      {resultsReady ? (
+        <div className="mx-3 mb-3 p-3 bg-dark-base rounded-xl border border-border-subtle">
+          <div className="flex items-center gap-2 mb-2">
+            {riskLevel === 'LOW' ? (
+              <ShieldCheck className="w-4 h-4 text-risk-low" />
+            ) : riskLevel === 'HIGH' ? (
+              <AlertTriangle className="w-4 h-4 text-risk-high" />
+            ) : (
+              <AlertTriangle className="w-4 h-4 text-risk-medium" />
+            )}
+            <span className={cn(
+              'text-[11px] font-semibold uppercase tracking-wide',
+              riskLevel === 'LOW' ? 'text-risk-low' : riskLevel === 'HIGH' ? 'text-risk-high' : 'text-risk-medium'
+            )}>
+              {language === 'sw'
+                ? (riskLevel === 'LOW' ? 'Hatari Ndogo' : riskLevel === 'HIGH' ? 'Hatari Kubwa' : 'Hatari Wastani')
+                : `${riskLevel} RISK`}
+            </span>
+          </div>
+          {verdict && (
+            <p className="text-[12px] text-text-primary leading-snug mb-3">{verdict}</p>
+          )}
+          <button
+            onClick={() => {
               const loanParam = recommendedLoanId ? `?loan=${recommendedLoanId}` : ''
               router.push(`/loans${loanParam}`)
-            }
-          }}
-          disabled={!resultsReady}
-          className={cn(
-            'w-full py-2.5 rounded-lg text-[13px] font-semibold transition-all duration-200',
-            resultsReady
-              ? 'bg-gold-harvest text-dark-base hover:opacity-90 cursor-pointer'
-              : 'bg-gold-harvest/20 text-gold-harvest/40 cursor-not-allowed'
-          )}
-        >
-          View full results →
-        </button>
-      </div>
+            }}
+            className="w-full py-2 rounded-lg text-[12px] font-semibold bg-gold-harvest text-dark-base hover:opacity-90 transition-all"
+          >
+            {language === 'sw' ? 'Tazama Mikopo Inayofaa →' : 'View matching loans →'}
+          </button>
+        </div>
+      ) : (
+        <div className="px-3 pb-4">
+          <button disabled
+            className="w-full py-2.5 rounded-lg text-[13px] font-semibold bg-gold-harvest/20 text-gold-harvest/40 cursor-not-allowed"
+          >
+            {language === 'sw' ? 'Tazama matokeo kamili →' : 'View full results →'}
+          </button>
+        </div>
+      )}
     </aside>
   )
 }
