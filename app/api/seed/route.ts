@@ -391,7 +391,48 @@ export async function GET() {
     )
     results.push('Seeded demo lender')
 
-    // ── 9. Demo Loans + Masumi M-Pesa disbursement metadata ──────────────────
+    // ── 9. Market Listings ──────────────────────────────────────────────────────
+    const MARKET_LISTINGS = [
+      { id: 'ml-1', crop: 'Maize',      quantity: 50,  unit: 'bags',   pricePerUnit: 3500, seller: 'Wanjiku Muthoni',  county: 'Nakuru',        date: '2026-05-20', status: 'active',   quality: 'Grade 1', available: 'Jun 2026' },
+      { id: 'ml-2', crop: 'Beans',      quantity: 20,  unit: 'bags',   pricePerUnit: 8500, seller: 'Mary Wanjiku',     county: 'Nyeri',         date: '2026-05-18', status: 'active',   quality: 'Premium',  available: 'Jun 2026' },
+      { id: 'ml-3', crop: 'Rice',       quantity: 30,  unit: 'bags',   pricePerUnit: 6500, seller: 'John Ochieng',     county: 'Kisumu',        date: '2026-05-15', status: 'sold',     quality: 'Grade 2', available: 'May 2026' },
+      { id: 'ml-4', crop: 'Tea',        quantity: 100, unit: 'kg',     pricePerUnit: 280,  seller: 'Sarah Chebet',     county: 'Nandi',         date: '2026-05-22', status: 'active',   quality: 'Premium',  available: 'Jun 2026' },
+      { id: 'ml-5', crop: 'Potatoes',   quantity: 40,  unit: 'bags',   pricePerUnit: 2800, seller: 'James Kibet',      county: 'Elgeyo-Marakwet', date: '2026-05-19', status: 'active', quality: 'Grade 1', available: 'Jul 2026' },
+      { id: 'ml-6', crop: 'Tomatoes',   quantity: 15,  unit: 'crates', pricePerUnit: 4500, seller: 'Peter Mwangi',     county: "Murang'a",      date: '2026-05-21', status: 'active',   quality: 'Grade 1', available: 'Jun 2026' },
+      { id: 'ml-7', crop: 'Sorghum',    quantity: 25,  unit: 'bags',   pricePerUnit: 4200, seller: 'Grace Akinyi',     county: 'Homa Bay',      date: '2026-05-25', status: 'active',   quality: 'Organic',  available: 'Jul 2026' },
+      { id: 'ml-8', crop: 'Wheat',      quantity: 35,  unit: 'bags',   pricePerUnit: 3800, seller: 'David Kiprop',     county: 'Uasin Gishu',   date: '2026-05-23', status: 'active',   quality: 'Grade 1', available: 'Aug 2026' },
+    ]
+    for (const l of MARKET_LISTINGS) {
+      await session.run(
+        `MERGE (ml:MarketListing {id: $id})
+         SET ml.crop = $crop, ml.quantity = $quantity, ml.unit = $unit,
+             ml.pricePerUnit = $pricePerUnit, ml.seller = $seller,
+             ml.county = $county, ml.date = $date, ml.status = $status,
+             ml.quality = $quality, ml.available = $available`,
+        l
+      )
+    }
+    results.push(`Seeded ${MARKET_LISTINGS.length} market listings`)
+
+    // ── 10. Orders ──────────────────────────────────────────────────────────────
+    const ORDERS = [
+      { id: 'ord-1', listingId: 'ml-3', buyerId: 'u-buyer', buyerName: 'Twiga Foods', seller: 'John Ochieng', crop: 'Rice', quantity: 30, price: 6500, total: 195000, county: 'Kisumu', status: 'DELIVERED', date: '2026-05-16T10:30:00Z' },
+      { id: 'ord-2', listingId: 'ml-5', buyerId: 'u-buyer', buyerName: 'Twiga Foods', seller: 'James Kibet', crop: 'Potatoes', quantity: 10, price: 2800, total: 28000, county: 'Elgeyo-Marakwet', status: 'CONFIRMED', date: '2026-05-20T14:15:00Z' },
+    ]
+    for (const o of ORDERS) {
+      await session.run(
+        `MERGE (ord:Order {id: $id})
+         SET ord.listingId = $listingId, ord.buyerId = $buyerId,
+             ord.buyerName = $buyerName, ord.seller = $seller,
+             ord.crop = $crop, ord.quantity = $quantity, ord.price = $price,
+             ord.total = $total, ord.county = $county, ord.status = $status,
+             ord.date = $date`,
+        o
+      )
+    }
+    results.push(`Seeded ${ORDERS.length} orders`)
+
+    // ── 11. Demo Loans + Masumi M-Pesa disbursement metadata ──────────────────
     for (const loan of DEMO_LOANS) {
       await session.run(
         `MERGE (l:Loan {id: $id})

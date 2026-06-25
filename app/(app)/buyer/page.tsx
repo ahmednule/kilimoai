@@ -5,32 +5,45 @@ import { useRouter } from 'next/navigation'
 import {
   ShoppingCart, Sprout, MapPin, TrendingUp, DollarSign,
   Search, Filter, Eye, Package, Calendar, ArrowUpRight,
-  CheckCircle2, Clock, XCircle,
+  CheckCircle2, Clock, XCircle, Plus, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Language } from '@/lib/types'
-import { getSession } from '@/lib/auth'
+import { getSession, getToken } from '@/lib/auth'
 import { getLanguage } from '@/lib/i18n'
 import { KENYAN_COUNTIES, CROPS } from '@/lib/constants'
+import { toast } from 'sonner'
 
 type View = 'LOADING' | 'UNAUTHORIZED' | 'DASHBOARD'
 
-const MOCK_LISTINGS = [
-  { id: 1, farmer: 'Samuel Mwangi', crop: 'maize', quantity: 120, unit: 'bags', price: 4200, county: 'Nyeri', quality: 'Grade 1', available: 'Jul 2026' },
-  { id: 2, farmer: 'Grace Akinyi', crop: 'rice', quantity: 85, unit: 'bags', price: 5800, county: 'Kisumu', quality: 'Grade 2', available: 'Aug 2026' },
-  { id: 3, farmer: 'Peter Kamau', crop: 'coffee', quantity: 40, unit: 'bags', price: 15000, county: 'Nakuru', quality: 'Premium', available: 'Sep 2026' },
-  { id: 4, farmer: 'Jane Wanjiku', crop: 'tea', quantity: 200, unit: 'kgs', price: 350, county: 'Kiambu', quality: 'Grade 1', available: 'Jul 2026' },
-  { id: 5, farmer: 'David Ochieng', crop: 'maize', quantity: 300, unit: 'bags', price: 3900, county: 'Migori', quality: 'Grade 2', available: 'Aug 2026' },
-  { id: 6, farmer: 'Mary Wambui', crop: 'beans', quantity: 60, unit: 'bags', price: 6800, county: 'Nyeri', quality: 'Grade 1', available: 'Jul 2026' },
-  { id: 7, farmer: 'Joseph Kiprotich', crop: 'wheat', quantity: 150, unit: 'bags', price: 4500, county: 'Uasin Gishu', quality: 'Grade 1', available: 'Sep 2026' },
-  { id: 8, farmer: 'Amina Hassan', crop: 'tomatoes', quantity: 500, unit: 'crates', price: 2800, county: 'Mombasa', quality: 'Grade 1', available: 'Jul 2026' },
-]
+interface Listing {
+  id: string
+  crop: string
+  quantity: number
+  unit: string
+  price: number
+  seller: string
+  county: string
+  quality: string
+  available: string
+  status: string
+  date: string
+}
 
-const MOCK_MY_ORDERS = [
-  { id: 'ord-1', farmer: 'Samuel Mwangi', crop: 'maize', quantity: 40, price: 4200, total: 168000, status: 'CONFIRMED', date: '2026-06-15' },
-  { id: 'ord-2', farmer: 'Grace Akinyi', crop: 'rice', quantity: 25, price: 5800, total: 145000, status: 'PENDING', date: '2026-06-18' },
-  { id: 'ord-3', farmer: 'Jane Wanjiku', crop: 'tea', quantity: 100, price: 350, total: 35000, status: 'DELIVERED', date: '2026-06-10' },
-]
+interface Order {
+  id: string
+  listingId: string
+  buyerId: string
+  buyerName: string
+  seller: string
+  crop: string
+  quantity: number
+  price: number
+  total: number
+  county: string
+  status: string
+  date: string
+}
 
 const STATUS_CONFIG: Record<string, { icon: typeof Clock; color: string; bg: string }> = {
   PENDING:   { icon: Clock, color: 'text-yellow-400', bg: 'bg-yellow-400/10' },
@@ -47,6 +60,14 @@ export default function BuyerPage() {
   const [search, setSearch] = useState('')
   const [countyFilter, setCountyFilter] = useState('')
   const [cropFilter, setCropFilter] = useState('')
+  const [listings, setListings] = useState<Listing[]>([])
+  const [orders, setOrders] = useState<Order[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // Order modal
+  const [showOrder, setShowOrder] = useState<Listing | null>(null)
+  const [orderQty, setOrderQty] = useState(0)
+  const [placing, setPlacing] = useState(false)
 
   useEffect(() => {
     const savedLang = getLanguage()
@@ -55,9 +76,10 @@ export default function BuyerPage() {
     const sess = getSession()
     if (!sess.isAuthenticated || sess.role !== 'buyer') {
       setView('UNAUTHORIZED')
-    } else {
-      setView('DASHBOARD')
+      return
     }
+    setView('DASHBOARD')
+    loadData()
   }, [])
 
   useEffect(() => {
@@ -66,6 +88,61 @@ export default function BuyerPage() {
       return () => clearTimeout(t)
     }
   }, [view, router])
+
+  async function loadData() {
+    setLoading(true)
+    try {
+      const [listRes, ordRes] = await Promise.all([
+        fetch('/api/marketplace/listings'),
+        fetch('/api/marketplace/orders'),
+      ])
+      if (listRes.ok) {
+        const listData = await listRes.json()
+        setListings(listData.listings || [])
+      }
+      if (ordRes.ok) {
+        const ordData = await ordRes.json()
+        setOrders(ordData.orders || [])
+      }
+    } catch (e) {
+      console.error('Failed to load marketplace data', e)
+    }
+    setLoading(false)
+  }
+
+  async function handlePlaceOrder(listing: Listing) {
+    if (!orderQty || orderQty < 1) return
+    setPlacing(true)
+    const token = getToken()
+    try {
+      const res = await fetch('/api/marketplace/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          listingId: listing.id,
+          buyerId: 'u-buyer',
+          buyerName: 'Twiga Foods',
+          seller: listing.seller,
+          crop: listing.crop,
+          quantity: orderQty,
+          price: listing.price,
+          county: listing.county,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success(lang === 'sw' ? 'Agizo limewekwa!' : 'Order placed!')
+        setShowOrder(null)
+        setOrderQty(0)
+        loadData()
+      } else {
+        toast.error(data.error || 'Failed to place order')
+      }
+    } catch {
+      toast.error('Network error')
+    }
+    setPlacing(false)
+  }
 
   if (view === 'LOADING') return null
 
@@ -88,15 +165,17 @@ export default function BuyerPage() {
     )
   }
 
-  const filteredListings = MOCK_LISTINGS.filter(l => {
-    if (search && !l.farmer.toLowerCase().includes(search.toLowerCase()) && !l.crop.toLowerCase().includes(search.toLowerCase())) return false
+  const activeListings = listings.filter(l => l.status === 'active')
+  const filteredListings = activeListings.filter(l => {
+    if (search && !l.seller.toLowerCase().includes(search.toLowerCase()) && !l.crop.toLowerCase().includes(search.toLowerCase())) return false
     if (countyFilter && l.county !== countyFilter) return false
     if (cropFilter && l.crop !== cropFilter) return false
     return true
   })
 
-  const totalSpent = MOCK_MY_ORDERS.reduce((sum, o) => sum + o.total, 0)
-  const activeOrders = MOCK_MY_ORDERS.filter(o => o.status === 'PENDING' || o.status === 'CONFIRMED').length
+  const totalSpent = orders.reduce((sum, o) => sum + o.total, 0)
+  const activeOrders = orders.filter(o => o.status === 'PENDING' || o.status === 'CONFIRMED').length
+  const counties = [...new Set(listings.map(l => l.county))]
 
   return (
     <div className="h-full overflow-y-auto scrollbar-thin">
@@ -135,7 +214,7 @@ export default function BuyerPage() {
         <div className="grid grid-cols-4 gap-4">
           <div className="bg-dark-mid rounded-xl border border-border-subtle p-4">
             <span className="text-xs text-text-muted">{lang === 'sw' ? 'Orodha Zinazopatikana' : 'Available Listings'}</span>
-            <p className="text-2xl font-bold text-text-primary mt-2">{MOCK_LISTINGS.length}</p>
+            <p className="text-2xl font-bold text-text-primary mt-2">{activeListings.length}</p>
           </div>
           <div className="bg-dark-mid rounded-xl border border-border-subtle p-4">
             <span className="text-xs text-text-muted">{lang === 'sw' ? 'Maagizo Yanayoendelea' : 'Active Orders'}</span>
@@ -147,7 +226,7 @@ export default function BuyerPage() {
           </div>
           <div className="bg-dark-mid rounded-xl border border-border-subtle p-4">
             <span className="text-xs text-text-muted">{lang === 'sw' ? 'Kaunti Zinazohudumiwa' : 'Counties Served'}</span>
-            <p className="text-2xl font-bold text-text-primary mt-2">5</p>
+            <p className="text-2xl font-bold text-text-primary mt-2">{counties.length}</p>
           </div>
         </div>
 
@@ -188,15 +267,16 @@ export default function BuyerPage() {
               </select>
             </div>
 
-            {/* Listings Grid */}
-            {filteredListings.length === 0 ? (
+            {/* Loading */}
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="animate-spin w-6 h-6 border-2 border-orange-400 border-t-transparent rounded-full" />
+              </div>
+            ) : filteredListings.length === 0 ? (
               <div className="text-center py-16">
                 <Package className="w-10 h-10 text-text-muted mx-auto mb-3" />
                 <p className="text-text-muted text-sm">
                   {lang === 'sw' ? 'Hakuna orodha zilizopatikana' : 'No listings found'}
-                </p>
-                <p className="text-text-muted/60 text-xs mt-1">
-                  {lang === 'sw' ? 'Jaribu kurekebisha vichujio vyako' : 'Try adjusting your filters'}
                 </p>
               </div>
             ) : (
@@ -227,10 +307,11 @@ export default function BuyerPage() {
                       </div>
                     </div>
                     <div className="flex items-center justify-between pt-3 border-t border-border-subtle">
-                      <span className="text-xs text-text-muted">{item.farmer}</span>
-                      <button className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-400 text-dark-base text-xs font-medium rounded-lg hover:bg-orange-500 transition-colors">
-                        <Eye className="w-3.5 h-3.5" />
-                        {lang === 'sw' ? 'Tazama' : 'View'}
+                      <span className="text-xs text-text-muted">{item.seller}</span>
+                      <button onClick={() => { setShowOrder(item); setOrderQty(1) }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-400 text-dark-base text-xs font-medium rounded-lg hover:bg-orange-500 transition-colors">
+                        <Plus className="w-3.5 h-3.5" />
+                        {lang === 'sw' ? 'Agiza' : 'Order'}
                       </button>
                     </div>
                   </div>
@@ -247,7 +328,11 @@ export default function BuyerPage() {
                   {lang === 'sw' ? 'Maagizo Yangu' : 'My Orders'}
                 </h2>
               </div>
-              {MOCK_MY_ORDERS.length === 0 ? (
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin w-6 h-6 border-2 border-orange-400 border-t-transparent rounded-full" />
+                </div>
+              ) : orders.length === 0 ? (
                 <div className="text-center py-12">
                   <ShoppingCart className="w-10 h-10 text-text-muted mx-auto mb-3" />
                   <p className="text-text-muted text-sm">
@@ -256,8 +341,8 @@ export default function BuyerPage() {
                 </div>
               ) : (
                 <div className="divide-y divide-border-subtle">
-                  {MOCK_MY_ORDERS.map(order => {
-                    const statusConfig = STATUS_CONFIG[order.status]
+                  {orders.map(order => {
+                    const statusConfig = STATUS_CONFIG[order.status] || STATUS_CONFIG.PENDING
                     const StatusIcon = statusConfig.icon
                     return (
                       <div key={order.id} className="p-4 flex items-center gap-4 hover:bg-dark-base/30 transition-colors">
@@ -266,11 +351,11 @@ export default function BuyerPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-text-primary capitalize">{order.crop}</p>
-                          <p className="text-xs text-text-muted">{order.farmer} · {order.quantity} {lang === 'sw' ? 'magunia' : 'bags'}</p>
+                          <p className="text-xs text-text-muted">{order.seller} &middot; {order.quantity} {lang === 'sw' ? 'magunia' : 'bags'}</p>
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-medium text-text-primary">KES {order.total.toLocaleString()}</p>
-                          <p className="text-[11px] text-text-muted/60">{order.date}</p>
+                          <p className="text-[11px] text-text-muted/60">{new Date(order.date).toLocaleDateString()}</p>
                         </div>
                         <div className={cn('flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium', statusConfig.color, statusConfig.bg)}>
                           <StatusIcon className="w-3 h-3" />
@@ -285,6 +370,39 @@ export default function BuyerPage() {
           </>
         )}
       </div>
+
+      {/* Order Modal */}
+      {showOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-dark-mid border border-border-subtle rounded-2xl p-6 w-full max-w-sm relative">
+            <button onClick={() => { setShowOrder(null); setOrderQty(0) }} className="absolute top-4 right-4 text-text-muted hover:text-text-primary">
+              <X className="w-5 h-5" />
+            </button>
+            <h2 className="text-lg font-semibold text-text-primary mb-4">
+              {lang === 'sw' ? 'Agiza' : 'Order'} {showOrder.crop}
+            </h2>
+            <div className="space-y-4">
+              <div className="bg-dark-base rounded-xl p-3 space-y-1">
+                <p className="text-xs text-text-muted">{showOrder.seller} &middot; {showOrder.county}</p>
+                <p className="text-sm text-text-primary">KES {showOrder.price.toLocaleString()} / {showOrder.unit}</p>
+              </div>
+              <div>
+                <label className="text-xs text-text-muted mb-1 block">{lang === 'sw' ? 'Idadi' : 'Quantity'} ({showOrder.unit})</label>
+                <input type="number" min={1} max={showOrder.quantity} value={orderQty} onChange={e => setOrderQty(Number(e.target.value))}
+                  className="w-full px-3 py-2.5 rounded-lg bg-dark-base border border-border-subtle text-text-primary text-sm focus:outline-none focus:border-orange-400/50" />
+              </div>
+              <div className="flex justify-between items-center py-2 border-t border-border-subtle">
+                <span className="text-sm text-text-muted">{lang === 'sw' ? 'Jumla' : 'Total'}</span>
+                <span className="text-lg font-bold text-orange-400">KES {(showOrder.price * orderQty).toLocaleString()}</span>
+              </div>
+              <button onClick={() => handlePlaceOrder(showOrder)} disabled={placing || orderQty < 1}
+                className="w-full py-3 rounded-xl bg-orange-400 text-dark-base font-semibold hover:bg-orange-500 transition-all disabled:opacity-50">
+                {placing ? (lang === 'sw' ? 'Inaweka...' : 'Placing...') : (lang === 'sw' ? 'Weka Agizo' : 'Place Order')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

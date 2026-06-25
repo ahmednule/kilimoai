@@ -1,5 +1,6 @@
 'use client'
 
+import { Suspense } from 'react'
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -44,7 +45,7 @@ const UI_TEXT = {
   }
 }
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [lang, setLang] = useState<Language>('en')
@@ -189,5 +190,13 @@ export default function ResetPasswordPage() {
         </button>
       </form>
     </>
+  )
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-text-muted" /></div>}>
+      <ResetPasswordForm />
+    </Suspense>
   )
 }

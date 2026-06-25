@@ -289,7 +289,7 @@ export default function LenderDashboard() {
                 key={app.id}
                 className="bg-dark-mid border border-border-subtle rounded-xl p-4 hover:border-border-subtle/60 transition-all cursor-pointer group animate-fadeIn"
                 style={{ animationDelay: `${Math.min(i * 50, 400)}ms` }}
-                onClick={() => router.push(`/lender/farmer/${app.id}`)}
+                onClick={() => router.push(`/lender/approve/${app.id}`)}
               >
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   {/* Left: farmer info */}

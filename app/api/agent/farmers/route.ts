@@ -17,7 +17,8 @@ async function getUserFromToken(req: NextRequest) {
     if (result.records.length === 0) return null
     const record = result.records[0]
     const user = record.get('u').properties
-    user.role = record.get('roleName')
+    const relRole = record.get('roleName')
+    user.role = relRole || user.role || null
     return user
   } finally {
     await session.close()

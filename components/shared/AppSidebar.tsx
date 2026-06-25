@@ -35,18 +35,16 @@ const AGENT_NAV = [
 
 const LENDER_NAV = [
   { label: 'Dashboard',      icon: LayoutDashboard,   href: '/lender'             },
-  { label: 'Applications',   icon: FileText,           href: '/lender/applications' },
+  { label: 'Applications',   icon: FileText,           href: '/lender' },
   { label: 'Portfolio',      icon: BarChart3,          href: '/lender/portfolio'    },
   { label: 'AI Assistant',   icon: Bot,                href: '/chatbot'            },
   { label: 'Profile',        icon: UserCog,             href: '/profile'            },
 ]
 
 const BUYER_NAV = [
-  { label: 'Dashboard',      icon: LayoutDashboard,  href: '/buyer'           },
-  { label: 'Marketplace',    icon: ShoppingCart,      href: '/buyer/marketplace' },
-  { label: 'My Orders',      icon: Package,           href: '/buyer/orders'     },
-  { label: 'AI Assistant',   icon: Bot,                href: '/chatbot'          },
-  { label: 'Profile',        icon: UserCog,             href: '/profile'          },
+  { label: 'Dashboard',      icon: LayoutDashboard,  href: '/buyer' },
+  { label: 'AI Assistant',   icon: Bot,               href: '/chatbot' },
+  { label: 'Profile',        icon: UserCog,            href: '/profile' },
 ]
 
 const ADMIN_NAV = [

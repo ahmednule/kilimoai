@@ -1,5 +1,6 @@
 'use client'
 
+import { Suspense } from 'react'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -37,7 +38,7 @@ const UI_TEXT = {
   }
 }
 
-export default function VerifyPage() {
+function VerifyForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [lang, setLang] = useState<Language>('en')
@@ -50,7 +51,6 @@ export default function VerifyPage() {
     setLang(getLanguage())
   }, [])
 
-  // Handle verification link ── Gets called when user clicks the link in email
   useEffect(() => {
     const token = searchParams.get('token')
     const emailParam = searchParams.get('email')
@@ -59,7 +59,6 @@ export default function VerifyPage() {
       setStatus('verifying')
       verifyEmail(token, emailParam)
     } else {
-      // Show the "check your email" screen
       const storedEmail = localStorage.getItem('kilimo-signup-email')
       if (storedEmail) setEmail(storedEmail)
     }
@@ -82,12 +81,11 @@ export default function VerifyPage() {
     if (!email || resending) return
     setResending(true)
     try {
-      const res = await fetch('/api/auth/signup', {
+      await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       })
-      const data = await res.json()
       setResentMsg(UI_TEXT[lang].resent)
     } catch {}
     setResending(false)
@@ -161,5 +159,13 @@ export default function VerifyPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function VerifyPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-text-muted" /></div>}>
+      <VerifyForm />
+    </Suspense>
   )
 }

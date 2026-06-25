@@ -17,7 +17,8 @@ async function getUserFromToken(req: NextRequest) {
     if (result.records.length === 0) return null
     const record = result.records[0]
     const user = record.get('u').properties
-    user.role = record.get('roleName')
+    const relRole = record.get('roleName')
+    user.role = relRole || user.role || null
     return user
   } finally {
     await session.close()
@@ -36,65 +37,49 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url)
     const statusFilter = searchParams.get('status') || 'all'
+    const loanId = searchParams.get('loanId') || ''
 
     const session = getSession()
     try {
-      let query = `
-        MATCH (lender:User {id: $lenderId})-[:ISSUED_LOAN]->(l:Loan)
-        OPTIONAL MATCH (farmer:User)-[:APPLIED_FOR]->(l)
-        OPTIONAL MATCH (farmer)-[:GROWS]->(c:Crop)
-        OPTIONAL MATCH (farmer)-[:LOCATED_IN]->(co:County)
-        OPTIONAL MATCH (farmer)-[:MEMBER_OF]->(cg:ChamaGroup)
+      // Query LoanApplication nodes through the existing relationship chain:
+      // User -> HAS_PROFILE -> FarmerProfile -> HAS_LOAN -> LoanApplication
+      const conditions: string[] = []
+      const params: Record<string, any> = {}
+      if (statusFilter !== 'all') { conditions.push('toLower(l.status) = toLower($statusFilter)'); params.statusFilter = statusFilter }
+      if (loanId) { conditions.push('l.id = $loanId'); params.loanId = loanId }
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+
+      const result = await session.run(`
+        MATCH (fp:FarmerProfile)-[:HAS_LOAN]->(l:LoanApplication)
+        OPTIONAL MATCH (u:User)-[:HAS_PROFILE]->(fp)
+        OPTIONAL MATCH (u)-[:BELONGS_TO]->(cg:ChamaGroup)
+        ${whereClause}
         RETURN l,
-               farmer.id AS farmerId, farmer.name AS farmerName, farmer.phone AS farmerPhone,
-               farmer.acreage AS acreage, farmer.creditScore AS creditScore,
-               collect(DISTINCT c.name) AS crops,
-               co.name AS countyName,
+               u.id AS farmerId, u.name AS farmerName, u.phone AS farmerPhone, u.email AS farmerEmail,
+               fp.acres AS acreage, fp.creditScore AS creditScore, fp.crop AS farmerCrop,
                cg.name AS chamaName
-        ORDER BY l.createdAt DESC
-      `
-
-      if (statusFilter !== 'all') {
-        query = `
-          MATCH (lender:User {id: $lenderId})-[:ISSUED_LOAN]->(l:Loan)
-          WHERE l.status = $statusFilter
-          OPTIONAL MATCH (farmer:User)-[:APPLIED_FOR]->(l)
-          OPTIONAL MATCH (farmer)-[:GROWS]->(c:Crop)
-          OPTIONAL MATCH (farmer)-[:LOCATED_IN]->(co:County)
-          OPTIONAL MATCH (farmer)-[:MEMBER_OF]->(cg:ChamaGroup)
-          RETURN l,
-                 farmer.id AS farmerId, farmer.name AS farmerName, farmer.phone AS farmerPhone,
-                 farmer.acreage AS acreage, farmer.creditScore AS creditScore,
-                 collect(DISTINCT c.name) AS crops,
-                 co.name AS countyName,
-                 cg.name AS chamaName
-          ORDER BY l.createdAt DESC
-        `
-      }
-
-      const result = await session.run(query, { lenderId: lender.id, statusFilter })
+        ORDER BY l.date DESC
+      `, params)
 
       const loans = result.records.map(r => {
-        const l = r.get('l').properties
-        const crops = r.get('crops') || []
+        const props = r.get('l').properties
+        const crop = r.get('farmerCrop') || ''
         return {
-          id: l.id,
-          farmerId: r.get('farmerId'),
-          farmerName: r.get('farmerName'),
+          id: props.id,
+          farmerId: r.get('farmerId') || props.farmerId || '',
+          farmerName: r.get('farmerName') || props.farmerName || '',
           farmerPhone: r.get('farmerPhone') || '',
-          county: r.get('countyName') || '',
-          crops,
-          acreage: r.get('acreage') || 0,
-          loanAmount: l.amount,
-          riskScore: l.riskScore || 0,
+          farmerEmail: r.get('farmerEmail') || '',
+          county: props.county || '',
+          crops: crop ? [crop] : [],
+          acreage: r.get('acreage') || props.acres || 0,
+          loanAmount: props.amount || 0,
+          riskScore: props.riskLevel === 'LOW' ? 20 : props.riskLevel === 'MEDIUM' ? 50 : props.riskLevel === 'HIGH' ? 85 : 0,
           creditScore: r.get('creditScore') || 0,
-          status: l.status,
+          status: props.status || 'pending',
           hasChama: !!r.get('chamaName'),
           chamaName: r.get('chamaName') || null,
-          disbursedVia: l.disbursedVia || null,
-          masumiRef: l.masumiRef || null,
-          recipientPhone: l.recipientPhone || null,
-          createdAt: l.createdAt ? l.createdAt.toString() : '',
+          createdAt: props.date ? props.date.toString() : '',
         }
       })
 
@@ -136,30 +121,39 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Invalid action' }, { status: 400 })
     }
 
+    const newStatus = action === 'approve' ? 'approved' : action === 'counter' ? 'countered' : 'rejected'
+
     const session = getSession()
     try {
-      // Check lender owns this loan
+      // Find the loan application through the existing relationship chain
       const check = await session.run(
-        `MATCH (lender:User {id: $lenderId})-[:ISSUED_LOAN]->(l:Loan {id: $loanId})
-         RETURN l`,
-        { lenderId: lender.id, loanId }
+        `MATCH (fp:FarmerProfile)-[:HAS_LOAN]->(l:LoanApplication {id: $loanId})
+         OPTIONAL MATCH (u:User)-[:HAS_PROFILE]->(fp)
+         RETURN l, u.id AS farmerId, u.phone AS farmerPhone, u.name AS farmerName, fp.crop AS farmerCrop`,
+        { loanId }
       )
 
       if (check.records.length === 0) {
-        return NextResponse.json({ success: false, error: 'Loan not found or not assigned to you' }, { status: 404 })
+        return NextResponse.json({ success: false, error: 'Loan not found' }, { status: 404 })
       }
 
-      const newStatus = action === 'approve' ? 'approved' : action === 'counter' ? 'countered' : 'rejected'
+      const loanProps = check.records[0].get('l').properties
+      const farmerId = check.records[0].get('farmerId')
+      const farmerPhone = check.records[0].get('farmerPhone') || ''
+      const farmerName = check.records[0].get('farmerName') || ''
+      const farmerCrop = check.records[0].get('farmerCrop') || ''
 
+      // Update loan status
       await session.run(
-        `MATCH (lender:User {id: $lenderId})-[:ISSUED_LOAN]->(l:Loan {id: $loanId})
+        `MATCH (fp:FarmerProfile)-[:HAS_LOAN]->(l:LoanApplication {id: $loanId})
          SET l.status = $newStatus,
              l.decidedAt = datetime(),
+             l.decidedBy = $lenderId,
              l.decisionReason = $reason
          ${amount ? ', l.approvedAmount = $amount' : ''}
          ${interestRate ? ', l.interestRate = $interestRate' : ''}
          ${duration ? ', l.duration = $duration' : ''}`,
-        { lenderId: lender.id, loanId, newStatus, reason: reason || '', amount: amount || null, interestRate: interestRate || null, duration: duration || null }
+        { loanId, lenderId: lender.id, newStatus, reason: reason || '', amount: amount || null, interestRate: interestRate || null, duration: duration || null }
       )
 
       // If approved, create ActiveLoan node and trigger Masumi
@@ -168,27 +162,30 @@ export async function POST(req: NextRequest) {
         const masumiRef = `MSM-${Date.now().toString(36).toUpperCase()}`
 
         await session.run(
-          `MATCH (farmer:User)-[:APPLIED_FOR]->(l:Loan {id: $loanId})
+          `MATCH (fp:FarmerProfile)-[:HAS_LOAN]->(l:LoanApplication {id: $loanId})
            MATCH (lender:User {id: $lenderId})
+           WITH fp, l, lender
+           OPTIONAL MATCH (u:User)-[:HAS_PROFILE]->(fp)
            CREATE (al:ActiveLoan {
              id: $activeLoanId,
-             farmerId: farmer.id,
+             farmerId: COALESCE(u.id, fp.id),
              lenderId: $lenderId,
-             amount: coalesce(l.approvedAmount, l.amount),
-             interestRate: coalesce(l.interestRate, 12),
-             duration: coalesce(l.duration, 12),
+             amount: COALESCE(l.approvedAmount, l.amount),
+             interestRate: COALESCE(l.interestRate, 12),
+             duration: COALESCE(l.duration, 12),
              disbursedAt: datetime(),
              status: 'disbursed',
              disbursedVia: 'mpesa',
              masumiRef: $masumiRef,
-             recipientPhone: farmer.phone,
+             recipientPhone: u.phone,
              totalPaid: 0,
-             remainingBalance: coalesce(l.approvedAmount, l.amount)
+             remainingBalance: COALESCE(l.approvedAmount, l.amount)
            })
            CREATE (lender)-[:DISBURSED]->(al)
-           CREATE (farmer)-[:RECEIVED_LOAN]->(al)
-
-           // Update loan with masumi ref
+           WITH u, l, al
+           FOREACH (_ IN CASE WHEN u IS NOT NULL THEN [1] ELSE [] END |
+             CREATE (u)-[:RECEIVED_LOAN]->(al)
+           )
            SET l.masumiRef = $masumiRef,
                l.status = 'disbursed'`,
           { loanId, lenderId: lender.id, activeLoanId, masumiRef }

@@ -511,7 +511,9 @@ CREATE (:MarketListing {
   seller: 'Jane Muthoni',
   county: 'Kiambu',
   date: '2026-05-20',
-  status: 'active'
+  status: 'active',
+  quality: 'Grade 1',
+  available: 'Jun 2026'
 });
 
 CREATE (:MarketListing {
@@ -523,7 +525,9 @@ CREATE (:MarketListing {
   seller: 'Mary Wanjiku',
   county: 'Nyeri',
   date: '2026-05-18',
-  status: 'active'
+  status: 'active',
+  quality: 'Premium',
+  available: 'Jun 2026'
 });
 
 CREATE (:MarketListing {
@@ -535,7 +539,9 @@ CREATE (:MarketListing {
   seller: 'John Ochieng',
   county: 'Kisumu',
   date: '2026-05-15',
-  status: 'sold'
+  status: 'sold',
+  quality: 'Grade 2',
+  available: 'May 2026'
 });
 
 CREATE (:MarketListing {
@@ -547,7 +553,9 @@ CREATE (:MarketListing {
   seller: 'Sarah Chebet',
   county: 'Nandi',
   date: '2026-05-22',
-  status: 'active'
+  status: 'active',
+  quality: 'Premium',
+  available: 'Jun 2026'
 });
 
 CREATE (:MarketListing {
@@ -559,7 +567,9 @@ CREATE (:MarketListing {
   seller: 'James Kibet',
   county: 'Elgeyo-Marakwet',
   date: '2026-05-19',
-  status: 'active'
+  status: 'active',
+  quality: 'Grade 1',
+  available: 'Jul 2026'
 });
 
 CREATE (:MarketListing {
@@ -571,7 +581,70 @@ CREATE (:MarketListing {
   seller: 'Peter Mwangi',
   county: "Murang'a",
   date: '2026-05-21',
-  status: 'active'
+  status: 'active',
+  quality: 'Grade 1',
+  available: 'Jun 2026'
+});
+
+CREATE (:MarketListing {
+  id: 'ml-7',
+  crop: 'Sorghum',
+  quantity: 25,
+  unit: 'bags',
+  pricePerUnit: 4200,
+  seller: 'Grace Akinyi',
+  county: 'Homa Bay',
+  date: '2026-05-25',
+  status: 'active',
+  quality: 'Organic',
+  available: 'Jul 2026'
+});
+
+CREATE (:MarketListing {
+  id: 'ml-8',
+  crop: 'Wheat',
+  quantity: 35,
+  unit: 'bags',
+  pricePerUnit: 3800,
+  seller: 'David Kiprop',
+  county: 'Uasin Gishu',
+  date: '2026-05-23',
+  status: 'active',
+  quality: 'Grade 1',
+  available: 'Aug 2026'
+});
+
+// ============================================================
+// Seed orders
+// ============================================================
+CREATE (:Order {
+  id: 'ord-1',
+  listingId: 'ml-3',
+  buyerId: 'u-buyer',
+  buyerName: 'Twiga Foods',
+  seller: 'John Ochieng',
+  crop: 'Rice',
+  quantity: 30,
+  price: 6500,
+  total: 195000,
+  county: 'Kisumu',
+  status: 'DELIVERED',
+  date: '2026-05-16T10:30:00Z'
+});
+
+CREATE (:Order {
+  id: 'ord-2',
+  listingId: 'ml-5',
+  buyerId: 'u-buyer',
+  buyerName: 'Twiga Foods',
+  seller: 'James Kibet',
+  crop: 'Potatoes',
+  quantity: 10,
+  price: 2800,
+  total: 28000,
+  county: 'Elgeyo-Marakwet',
+  status: 'CONFIRMED',
+  date: '2026-05-20T14:15:00Z'
 });
 
 // ============================================================
