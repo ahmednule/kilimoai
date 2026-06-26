@@ -267,14 +267,14 @@ export function ChatPanel({
 
   return (
     <section className="flex-1 flex flex-col min-w-0 bg-dark-base overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-3 border-b border-border-subtle bg-dark-mid shrink-0">
-        <p className="text-[13px] text-text-muted">
+      <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-border-subtle bg-dark-mid shrink-0">
+        <p className="text-[12px] sm:text-[13px] text-text-muted truncate min-w-0 mr-2">
           {language === 'sw' ? `Mazungumzo kama ${profile.name}` : `Chatting as ${profile.name}`}
         </p>
         <LanguageToggle language={language} onChange={onLanguageChange} />
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 scrollbar-thin scrollbar-thumb-border-subtle scrollbar-track-transparent">
+      <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-3 sm:py-4 space-y-3 scrollbar-thin scrollbar-thumb-border-subtle scrollbar-track-transparent">
         {messages.map(msg => (
           <ChatMessage key={msg.id} message={msg} language={language} />
         ))}
@@ -364,8 +364,8 @@ export function ChatPanel({
         )}
       </AnimatePresence>
 
-      <div className="px-5 py-3 border-t border-border-subtle bg-dark-mid shrink-0">
-        <div className="flex items-center gap-3">
+      <div className="px-3 sm:px-5 py-2.5 sm:py-3 border-t border-border-subtle bg-dark-mid shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3">
           <input
             ref={fileInputRef}
             type="file"
@@ -379,13 +379,13 @@ export function ChatPanel({
             disabled={isLoading || isScanning}
             aria-label="Upload crop image"
             className={cn(
-              'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-150 border',
+              'w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-150 border',
               isScanning
                 ? 'border-border-subtle text-text-muted cursor-not-allowed'
                 : 'border-border-subtle text-green-400 hover:bg-green-primary/10 hover:border-green-primary/30'
             )}
           >
-            <Camera className="w-4 h-4" />
+            <Camera className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
           <textarea
             ref={textareaRef}
@@ -396,9 +396,9 @@ export function ChatPanel({
             rows={1}
             disabled={isLoading || isScanning}
             className={cn(
-              'flex-1 resize-none bg-dark-base border border-border-subtle rounded-xl px-4 py-2.5 text-[13px] text-text-primary placeholder:text-text-muted/40',
+              'flex-1 resize-none bg-dark-base border border-border-subtle rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 text-[12px] sm:text-[13px] text-text-primary placeholder:text-text-muted/40',
               'focus:outline-none focus:ring-1 focus:ring-green-primary/50 focus:border-green-primary',
-              'transition-all duration-150 min-h-[42px] max-h-[120px] leading-relaxed',
+              'transition-all duration-150 min-h-[38px] sm:min-h-[42px] max-h-[120px] leading-relaxed',
               (isLoading || isScanning) && 'opacity-50 cursor-not-allowed'
             )}
           />
@@ -407,13 +407,13 @@ export function ChatPanel({
             disabled={!draft.trim() || isLoading || isScanning}
             aria-label="Send message"
             className={cn(
-              'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-150',
+              'w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-150',
               draft.trim() && !isLoading && !isScanning
                 ? 'bg-green-primary hover:bg-green-primary/80'
                 : 'bg-green-primary/20 cursor-not-allowed'
             )}
           >
-            <Send className="w-4 h-4 text-green-100" />
+            <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-100" />
           </button>
         </div>
       </div>

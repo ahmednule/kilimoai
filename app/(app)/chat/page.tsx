@@ -252,15 +252,15 @@ export default function ChatPage() {
   return (
     <div className="flex h-full">
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="flex items-center justify-between px-6 py-3 border-b border-border-subtle shrink-0">
-          <div className="flex items-center gap-3">
-            <h2 className="font-serif text-lg font-semibold text-text-primary">
+        <div className="flex items-center justify-between gap-2 px-4 sm:px-6 py-3 border-b border-border-subtle shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <h2 className="font-serif text-sm sm:text-lg font-semibold text-text-primary truncate">
               {mode === 'general' ? (language === 'sw' ? 'Maswali ya Kilimo' : 'Farming Advice') : 'Loan Assessment'}
             </h2>
-            <div className="flex items-center gap-1 rounded-full bg-dark-mid p-0.5">
+            <div className="flex items-center gap-1 rounded-full bg-dark-mid p-0.5 shrink-0">
               <button
                 onClick={() => handleModeChange('assessment')}
-                className={`px-2.5 py-1 text-[11px] font-medium rounded-full transition-all duration-200 ${
+                className={`px-2 sm:px-2.5 py-1 text-[10px] sm:text-[11px] font-medium rounded-full transition-all duration-200 ${
                   mode === 'assessment'
                     ? 'bg-green-primary text-text-primary'
                     : 'text-text-muted hover:text-text-primary'
@@ -270,7 +270,7 @@ export default function ChatPage() {
               </button>
               <button
                 onClick={() => handleModeChange('general')}
-                className={`px-2.5 py-1 text-[11px] font-medium rounded-full transition-all duration-200 ${
+                className={`px-2 sm:px-2.5 py-1 text-[10px] sm:text-[11px] font-medium rounded-full transition-all duration-200 ${
                   mode === 'general'
                     ? 'bg-green-primary text-text-primary'
                     : 'text-text-muted hover:text-text-primary'
@@ -282,10 +282,10 @@ export default function ChatPage() {
           </div>
           <button
             onClick={handleReset}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border-subtle text-xs text-text-muted hover:text-text-primary hover:border-green-primary/40 transition-all"
+            className="shrink-0 flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg border border-border-subtle text-[11px] sm:text-xs text-text-muted hover:text-text-primary hover:border-green-primary/40 transition-all"
           >
             <RefreshCw className="w-3 h-3" />
-            {language === 'sw' ? 'Anza upya' : 'New assessment'}
+            <span className="hidden sm:inline">{language === 'sw' ? 'Anza upya' : 'New assessment'}</span>
           </button>
         </div>
 

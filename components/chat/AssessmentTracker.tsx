@@ -1,9 +1,11 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Check, CloudRain, AlertTriangle, ShieldCheck } from 'lucide-react'
+import { useState } from 'react'
+import { Check, CloudRain, AlertTriangle, ShieldCheck, ChevronRight, ChevronDown, BarChart3 } from 'lucide-react'
 import { FarmerProfile, Language } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 
 export interface AssessmentStep {
   id: number
@@ -18,7 +20,6 @@ export interface WeatherData {
   periodDays: number
   season: string
   forecastLabel: string
-  /** 0–100, used for the progress bar */
   adequacyPct: number
 }
 
@@ -57,23 +58,22 @@ function StepCircle({ step }: { step: AssessmentStep }) {
   )
 }
 
-export function AssessmentTracker({
-  profile,
-  language,
-  steps,
-  weather,
-  resultsReady,
-  recommendedLoanId,
-  verdict,
-  riskLevel,
-}: AssessmentTrackerProps) {
+function TrackerContent({
+  steps, weather, resultsReady, recommendedLoanId, verdict, riskLevel, language
+}: {
+  steps: AssessmentStep[]
+  weather: WeatherData | null
+  resultsReady: boolean
+  recommendedLoanId?: string | null
+  verdict?: string | null
+  riskLevel?: string | null
+  language: Language
+}) {
   const router = useRouter()
   const doneCount = steps.filter(s => s.status === 'done').length
 
   return (
-    <aside className="flex flex-col w-[280px] shrink-0 bg-dark-mid border-l border-border-subtle overflow-hidden">
-
-      {/* Header */}
+    <>
       <div className="px-4 py-3.5 border-b border-border-subtle">
         <p className="text-[13px] font-medium text-text-primary">Assessment progress</p>
         <p className="text-[11px] text-text-muted mt-0.5">
@@ -81,14 +81,12 @@ export function AssessmentTracker({
         </p>
       </div>
 
-      {/* Steps */}
       <div className="flex-1 overflow-y-auto px-4 py-4 scrollbar-none">
         <ol className="flex flex-col gap-0">
           {steps.map((step, idx) => {
             const isLast = idx === steps.length - 1
             return (
               <li key={step.id} className="flex gap-3 relative pb-5 last:pb-0">
-                {/* Connector line */}
                 {!isLast && (
                   <div
                     className={cn(
@@ -97,23 +95,17 @@ export function AssessmentTracker({
                     )}
                   />
                 )}
-
                 <StepCircle step={step} />
-
                 <div className="pt-0.5 min-w-0">
-                  <p
-                    className={cn(
-                      'text-[12px] font-medium leading-tight',
-                      step.status === 'done'  && 'text-text-muted/50',
-                      step.status === 'active'  && 'text-text-primary',
-                      step.status === 'pending' && 'text-text-muted/40'
-                    )}
-                  >
+                  <p className={cn(
+                    'text-[12px] font-medium leading-tight',
+                    step.status === 'done'  && 'text-text-muted/50',
+                    step.status === 'active'  && 'text-text-primary',
+                    step.status === 'pending' && 'text-text-muted/40'
+                  )}>
                     {step.label}
                   </p>
-                  <p className="text-[11px] text-text-muted/50 mt-0.5 leading-snug">
-                    {step.detail}
-                  </p>
+                  <p className="text-[11px] text-text-muted/50 mt-0.5 leading-snug">{step.detail}</p>
                   {step.status === 'active' && (
                     <span className="inline-block mt-1.5 px-2 py-0.5 bg-green-primary/10 border border-green-primary/20 rounded-full text-[10px] text-green-400">
                       In progress
@@ -126,10 +118,8 @@ export function AssessmentTracker({
         </ol>
       </div>
 
-      {/* Divider */}
       <div className="h-px bg-border-subtle mx-0" />
 
-      {/* Weather card */}
       {weather ? (
         <div className="mx-3 my-3 p-3 bg-dark-base rounded-xl border border-border-subtle">
           <div className="flex items-center justify-between">
@@ -137,18 +127,11 @@ export function AssessmentTracker({
               <CloudRain className="w-3.5 h-3.5" />
               {weather.county} · {weather.periodDays} days
             </span>
-            <span className="text-lg font-semibold text-text-primary font-mono">
-              {weather.rainfallMm} mm
-            </span>
+            <span className="text-lg font-semibold text-text-primary font-mono">{weather.rainfallMm} mm</span>
           </div>
-          <p className="text-[11px] text-text-muted mt-1">
-            {weather.forecastLabel} · {weather.season}
-          </p>
+          <p className="text-[11px] text-text-muted mt-1">{weather.forecastLabel} · {weather.season}</p>
           <div className="mt-2 h-1 bg-border-subtle rounded-full overflow-hidden">
-            <div
-              className="h-full bg-green-primary rounded-full transition-all duration-700"
-              style={{ width: `${weather.adequacyPct}%` }}
-            />
+            <div className="h-full bg-green-primary rounded-full transition-all duration-700" style={{ width: `${weather.adequacyPct}%` }} />
           </div>
         </div>
       ) : (
@@ -160,7 +143,6 @@ export function AssessmentTracker({
         </div>
       )}
 
-      {/* Result card */}
       {resultsReady ? (
         <div className="mx-3 mb-3 p-3 bg-dark-base rounded-xl border border-border-subtle">
           <div className="flex items-center gap-2 mb-2">
@@ -180,14 +162,9 @@ export function AssessmentTracker({
                 : `${riskLevel} RISK`}
             </span>
           </div>
-          {verdict && (
-            <p className="text-[12px] text-text-primary leading-snug mb-3">{verdict}</p>
-          )}
+          {verdict && <p className="text-[12px] text-text-primary leading-snug mb-3">{verdict}</p>}
           <button
-            onClick={() => {
-              const loanParam = recommendedLoanId ? `?loan=${recommendedLoanId}` : ''
-              router.push(`/loans${loanParam}`)
-            }}
+            onClick={() => router.push(`/loans${recommendedLoanId ? `?loan=${recommendedLoanId}` : ''}`)}
             className="w-full py-2 rounded-lg text-[12px] font-semibold bg-gold-harvest text-dark-base hover:opacity-90 transition-all"
           >
             {language === 'sw' ? 'Tazama Mikopo Inayofaa →' : 'View matching loans →'}
@@ -202,6 +179,42 @@ export function AssessmentTracker({
           </button>
         </div>
       )}
-    </aside>
+    </>
+  )
+}
+
+export function AssessmentTracker(props: AssessmentTrackerProps) {
+  const { steps } = props
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const doneCount = steps.filter(s => s.status === 'done').length
+
+  return (
+    <>
+      {/* Mobile toggle button */}
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="md:hidden fixed right-4 bottom-20 z-40 w-12 h-12 rounded-full bg-green-primary shadow-lg flex items-center justify-center"
+        aria-label="Toggle assessment progress"
+      >
+        <BarChart3 className="w-5 h-5 text-green-100" />
+        {doneCount > 0 && doneCount < STEP_COUNT && (
+          <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-gold-harvest text-[10px] font-bold text-dark-base flex items-center justify-center">
+            {doneCount}
+          </span>
+        )}
+      </button>
+
+      {/* Mobile Sheet drawer */}
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetContent side="right" className="w-[280px] p-0 bg-dark-mid border-border-subtle">
+          <TrackerContent {...props} />
+        </SheetContent>
+      </Sheet>
+
+      {/* Desktop sidebar */}
+      <aside className="hidden md:flex flex-col w-[280px] shrink-0 bg-dark-mid border-l border-border-subtle overflow-hidden">
+        <TrackerContent {...props} />
+      </aside>
+    </>
   )
 }
