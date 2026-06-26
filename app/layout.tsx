@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   authors: [{ name: 'Kenya AI Challenge 2026' }],
   icons: {
     icon: '/icons/icon-192.png',
-    apple: '/icons/icon-192.png',
+    apple: '/icons/apple-icon-180.png',
   },
   appleWebApp: {
     capable: true,
@@ -49,8 +49,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   themeColor: '#1A7A4A',
 }
 
