@@ -148,7 +148,7 @@ export function AppSidebar() {
       'kilimo-assessments', 'kilimo-email',
     ]
     keys.forEach(k => { try { localStorage.removeItem(k) } catch {} })
-    router.push('/auth/login')
+    router.push('/')
   }
 
   const handleNavClick = (href: string, isChatBotItem: boolean) => {
