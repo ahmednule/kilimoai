@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { DM_Sans, Fraunces, JetBrains_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { OfflineIndicator } from '@/components/shared/OfflineIndicator'
+import { PwaInstallPrompt } from '@/components/shared/PwaInstallPrompt'
 import { ChatBotWrapper } from '@/components/chatbot/ChatBotWrapper'
 import './globals.css'
 
@@ -65,6 +66,7 @@ export default function RootLayout({
           {children}
         </ChatBotWrapper>
         <OfflineIndicator />
+        <PwaInstallPrompt />
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
