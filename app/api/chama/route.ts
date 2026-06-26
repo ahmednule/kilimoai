@@ -48,6 +48,8 @@ export async function GET(req: NextRequest) {
         params = { search }
       }
 
+      const toNum = (v: any): number => typeof v === 'number' ? v : Number(v?.toNumber?.() ?? v ?? 0)
+
       const result = await session.run(query, params)
       const chamas = result.records.map(record => {
         const props = record.get('c').properties
@@ -56,9 +58,9 @@ export async function GET(req: NextRequest) {
           name: props.name,
           county: props.county,
           description: props.description || '',
-          registrationFee: props.registrationFee || 0,
-          memberCount: props.memberCount || 0,
-          totalSavings: props.totalSavings || 0,
+          registrationFee: toNum(props.registrationFee),
+          memberCount: toNum(props.memberCount),
+          totalSavings: toNum(props.totalSavings),
           createdAt: props.createdAt ? props.createdAt.toString() : '',
         }
       })

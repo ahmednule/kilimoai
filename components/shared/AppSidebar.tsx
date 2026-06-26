@@ -61,11 +61,34 @@ export function AppSidebar() {
   const pathname = usePathname()
   const chatBot  = useChatBot()
 
-  const [mounted,   setMounted]   = useState(false)
-  const [profile,   setProfile]   = useState<FarmerProfile | null>(null)
-  const [language,  setLanguage]  = useState<Language>('en')
-  const [riskLevel, setRiskLevel] = useState<RiskLevel>('UNKNOWN')
-  const [role,      setRole]      = useState<UserRole | null>(null)
+  const [profile,  setProfile]  = useState<FarmerProfile | null>(null)
+  const [language, setLanguage] = useState<Language>('en')
+  const [role,     setRole]     = useState<UserRole | null>(null)
+  const [optimisticHref, setOptimisticHref] = useState<string | null>(null)
+
+  const riskLevel: RiskLevel = typeof window !== 'undefined'
+    ? (() => { try { const v = localStorage.getItem('kilimo-chat-risk'); return v ? JSON.parse(v) : 'UNKNOWN' } catch { return 'UNKNOWN' } })()
+    : 'UNKNOWN'
+
+  // Sync role + profile from localStorage immediately (no fetch)
+  useEffect(() => {
+    const savedLang = localStorage.getItem('kilimo-language') as Language | null
+    const savedProfile = localStorage.getItem('kilimo-profile')
+    const sess = getSession()
+
+    if (savedLang) setLanguage(savedLang)
+    if (sess.role) setRole(sess.role)
+    if (savedProfile) {
+      try { setProfile(JSON.parse(savedProfile)) } catch {}
+    }
+  }, [])
+
+  // Reset optimistic href once pathname catches up
+  useEffect(() => {
+    if (optimisticHref && pathname.startsWith(optimisticHref)) {
+      setOptimisticHref(null)
+    }
+  }, [pathname, optimisticHref])
 
   const NAV_ITEMS = role === 'agent' ? AGENT_NAV
     : role === 'lender' ? LENDER_NAV
@@ -83,48 +106,11 @@ export function AppSidebar() {
 
   const activeStyle = role && role !== 'farmer' ? roleColors[role] : roleColors.farmer
 
-  useEffect(() => {
-    const savedLang    = localStorage.getItem('kilimo-language') as Language | null
-    const savedProfile = localStorage.getItem('kilimo-profile')
-
-    if (savedLang) setLanguage(savedLang)
-
-    if (savedProfile) {
-      try {
-        setProfile(JSON.parse(savedProfile))
-      } catch (e) {
-        console.error('[sidebar] corrupt localStorage profile', e)
-      }
-    } else {
-      // Fallback: fetch from API
-      ;(async () => {
-        try {
-          const token = getToken()
-          if (!token) return
-          const res = await fetch('/api/profile', {
-            headers: { Authorization: `Bearer ${token}` },
-          })
-          if (res.ok) {
-            const data = await res.json()
-            if (data.success && data.profile) {
-              const p = data.profile as FarmerProfile
-              setProfile(p)
-              localStorage.setItem('kilimo-profile', JSON.stringify(p))
-            }
-          }
-        } catch (e) {
-          console.error('[sidebar] profile fetch failed', e)
-        }
-      })()
-    }
-
-    const sess = getSession()
-    if (sess.role) setRole(sess.role)
-
-    setMounted(true)
-  }, [])
-
-  if (!mounted) return null
+  const isRouteActive = (href: string) => {
+    if (optimisticHref === href) return true
+    if (href === '/') return pathname === '/'
+    return pathname === href || pathname.startsWith(href + '/')
+  }
 
   const isAgent    = role === 'agent'
   const isLender   = role === 'lender'
@@ -153,7 +139,8 @@ export function AppSidebar() {
     ? profile.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
     : '??'
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try { await fetch('/api/auth/logout', { method: 'POST' }) } catch {}
     const keys = [
       'kilimo-session', 'kilimo-token', 'kilimo-profile',
       'kilimo-chat-messages', 'kilimo-chat-steps', 'kilimo-chat-risk', 'kilimo-chat-result',
@@ -210,7 +197,7 @@ export function AppSidebar() {
           <p className="text-[11px] text-text-muted mt-0.5">{profile.county} · {cropLabel}</p>
           <div className="mt-2 pt-2 border-t border-border-subtle flex justify-between text-[11px]">
             <span className="text-text-muted/60">Acreage</span>
-            <span className="text-text-muted font-medium">{profile.acres ?? 0} ac</span>
+            <span className="text-text-muted font-medium">{profile.crops?.reduce((s, c) => s + (c.acres || 0), 0) || profile.acres || 0} ac</span>
           </div>
         </div>
       ) : (
@@ -227,12 +214,15 @@ export function AppSidebar() {
 
       {/* Risk pill — farmer only */}
       {isFarmer && (
-        <div className="mx-3 mt-2">
-          <div className="flex items-center gap-2 px-3 py-2 bg-dark-base rounded-lg border border-border-subtle">
+        <button
+          onClick={() => router.push('/chat')}
+          className="mx-3 mt-2 w-full text-left"
+        >
+          <div className="flex items-center gap-2 px-3 py-2 bg-dark-base rounded-lg border border-border-subtle hover:border-green-primary/30 transition-all cursor-pointer">
             <span className="text-[11px] text-text-muted flex-1">Risk score</span>
             <RiskBadge level={riskLevel} compact />
           </div>
-        </div>
+        </button>
       )}
 
       {/* Navigation */}
@@ -240,7 +230,7 @@ export function AppSidebar() {
         <p className="text-[10px] uppercase tracking-widest text-text-muted/50 px-2 mb-1">Navigate</p>
         {NAV_ITEMS.map(({ label, icon: Icon, href }) => {
           const isChatBot = href === '/chatbot'
-          const active = isChatBot ? chatBot.open : pathname.startsWith(href)
+          const active = isChatBot ? chatBot.open : isRouteActive(href)
           return (
             <button
               key={href}
@@ -248,6 +238,7 @@ export function AppSidebar() {
                 if (isChatBot) {
                   chatBot.openChatBot()
                 } else {
+                  setOptimisticHref(href)
                   router.push(href)
                 }
               }}

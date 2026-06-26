@@ -20,6 +20,8 @@ export default function ProfilePage() {
   // Edit form state
   const [editCrop, setEditCrop] = useState('')
   const [editAcres, setEditAcres] = useState('')
+  const [editIsRented, setEditIsRented] = useState(false)
+  const [editRentPerAcre, setEditRentPerAcre] = useState('')
   const [editLang, setEditLang] = useState<Language>('en')
   const [editCounty, setEditCounty] = useState('')
 
@@ -33,8 +35,11 @@ export default function ProfilePage() {
       try {
         const parsed: FarmerProfile = JSON.parse(savedProfile)
         setProfile(parsed)
-        setEditCrop(parsed.crop || (parsed.crops?.[0]?.crop ?? ''))
+        const firstCrop = parsed.crops?.[0]
+        setEditCrop(parsed.crop || (firstCrop?.crop ?? ''))
         setEditAcres(String(parsed.acres || parsed.crops?.reduce((s, c) => s + (c.acres || 0), 0) || ''))
+        setEditIsRented(firstCrop?.isRented ?? false)
+        setEditRentPerAcre(firstCrop?.rentPerAcre ? String(firstCrop.rentPerAcre) : '')
         setEditLang(parsed.language || 'en')
         setEditCounty(parsed.county)
         setMounted(true)
@@ -66,8 +71,11 @@ export default function ProfilePage() {
             const p = data.profile as FarmerProfile
             setProfile(p)
             localStorage.setItem('kilimo-profile', JSON.stringify(p))
-            setEditCrop(p.crop || (p.crops?.[0]?.crop ?? ''))
+            const firstCrop = p.crops?.[0]
+            setEditCrop(p.crop || (firstCrop?.crop ?? ''))
             setEditAcres(String(p.acres || p.crops?.reduce((s, c) => s + (c.acres || 0), 0) || ''))
+            setEditIsRented(firstCrop?.isRented ?? false)
+            setEditRentPerAcre(firstCrop?.rentPerAcre ? String(firstCrop.rentPerAcre) : '')
             setEditLang(p.language || 'en')
             setEditCounty(p.county)
           }
@@ -82,11 +90,18 @@ export default function ProfilePage() {
 
   const handleSave = () => {
     setSaving(true)
+    const acres = parseFloat(editAcres) || 0
+    const rentPerAcre = parseFloat(editRentPerAcre) || 0
+    const cropEntry = editCrop
+      ? [{ crop: editCrop, acres, isRented: editIsRented, rentPerAcre: editIsRented ? rentPerAcre : 0 }]
+      : []
     const updated: FarmerProfile = {
       name: profile?.name || getSession().name || '',
       county: editCounty,
-      crops: editCrop ? [{ crop: editCrop, acres: parseFloat(editAcres) || 0, isRented: false }] : [],
+      crops: cropEntry,
       language: editLang,
+      rentedAcres: editIsRented ? acres : 0,
+      rentCostPerAcre: editIsRented ? rentPerAcre : 0,
     }
     localStorage.setItem('kilimo-profile', JSON.stringify(updated))
     localStorage.setItem('kilimo-language', editLang)
@@ -183,7 +198,42 @@ export default function ProfilePage() {
               className="w-full bg-dark-base border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-green-primary/50"
             />
           ) : (
-            <p className="text-sm text-text-muted">{currentAcres} acres</p>
+            <p className="text-sm text-text-muted">{currentAcres} acres{editIsRented ? ` · ${language === 'sw' ? 'Kukodi' : 'Rented'} · KES ${editRentPerAcre || '0'}/${language === 'sw' ? 'eka' : 'acre'}` : ''}</p>
+          )}
+        </div>
+
+        {/* Rented land */}
+        <div>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={editIsRented}
+              onChange={e => { setEditIsRented(e.target.checked); if (!e.target.checked) setEditRentPerAcre('') }}
+              disabled={!editing && !!profile}
+              className="w-4 h-4 rounded border-border-subtle bg-dark-base text-green-primary focus:ring-green-primary/40 accent-green-primary"
+            />
+            <span className="text-xs font-medium text-text-primary">{language === 'sw' ? 'Shamba la kukodi' : 'Rented land'}</span>
+          </label>
+          {(editing || !profile) && editIsRented && (
+            <div className="mt-2">
+              <label className="block text-xs font-medium text-text-secondary mb-1">
+                {language === 'sw' ? 'Kodi kwa ekari (KES)' : 'Rent per acre (KES)'}
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="100"
+                value={editRentPerAcre}
+                onChange={e => setEditRentPerAcre(e.target.value)}
+                placeholder="e.g. 5000"
+                className="w-full bg-dark-base border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-green-primary/50"
+              />
+            </div>
+          )}
+          {!editing && profile && editIsRented && (
+            <p className="text-sm text-text-muted mt-1">
+              KES {editRentPerAcre || '0'}/{language === 'sw' ? 'eka' : 'acre'}
+            </p>
           )}
         </div>
 
@@ -255,7 +305,16 @@ export default function ProfilePage() {
               </button>
               {profile && (
                 <button
-                  onClick={() => { setEditing(false); setEditCrop(profile.crop || ''); setEditAcres(String(profile.acres || '')); setEditLang(profile.language); setEditCounty(profile.county) }}
+                  onClick={() => {
+                    setEditing(false)
+                    const fc = profile.crops?.[0]
+                    setEditCrop(profile.crop || fc?.crop || '')
+                    setEditAcres(String(profile.acres || fc?.acres || ''))
+                    setEditIsRented(fc?.isRented ?? false)
+                    setEditRentPerAcre(fc?.rentPerAcre ? String(fc.rentPerAcre) : '')
+                    setEditLang(profile.language)
+                    setEditCounty(profile.county)
+                  }}
                   className="px-4 py-2 border border-border-subtle rounded-lg text-sm text-text-muted hover:text-text-primary transition-colors"
                 >
                   {language === 'sw' ? 'Ghairi' : 'Cancel'}

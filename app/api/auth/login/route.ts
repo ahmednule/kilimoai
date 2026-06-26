@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
 
     await session.close()
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       sessionToken,
       user: {
@@ -69,6 +69,14 @@ export async function POST(req: NextRequest) {
         county: countyName,
       }
     })
+    response.cookies.set('kilimo-token', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7,
+    })
+    return response
   } catch (err: any) {
     console.error('[login]', err.message || err)
     return NextResponse.json({ success: false, error: 'Something went wrong' }, { status: 500 })

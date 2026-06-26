@@ -46,6 +46,9 @@ export default function ChamaPage() {
   const [creating, setCreating] = useState(false)
   const [createDone, setCreateDone] = useState('')
 
+  const CHAMA_VIEW_KEY = 'kilimo-chama-view'
+  const CHAMA_MEMBERSHIP_KEY = 'kilimo-chama-membership'
+
   const t = {
     en: {
       badge: 'Chama',
@@ -134,12 +137,25 @@ export default function ChamaPage() {
       return
     }
     setSessionToken(token)
-    loadData()
+
+    // Fast restore from localStorage cache
+    const cachedView = localStorage.getItem(CHAMA_VIEW_KEY) as View | null
+    const cachedMembership = localStorage.getItem(CHAMA_MEMBERSHIP_KEY)
+    if (cachedView === 'PENDING' || cachedView === 'MEMBER') {
+      setView(cachedView)
+    }
+    if (cachedMembership) {
+      try { setMembership(JSON.parse(cachedMembership)) } catch {}
+    }
+
+    loadData(token)
   }, [])
 
   const headers = () => ({ Authorization: `Bearer ${sessionToken}` })
 
-  async function loadData() {
+  async function loadData(tokenOverride?: string) {
+    const t = tokenOverride || sessionToken
+    const authHeaders = () => ({ Authorization: `Bearer ${t}` })
     try {
       const chamaRes = await fetch('/api/chama?search=Mercy+Corps')
       if (!chamaRes.ok) { setView('BROWSE'); setChama(null); return }
@@ -148,20 +164,26 @@ export default function ChamaPage() {
       if (!found) { setView('BROWSE'); setChama(null); return }
       setChama(found)
 
-      const memRes = await fetch('/api/chama/membership', { headers: headers() })
+      const memRes = await fetch('/api/chama/membership', { headers: authHeaders() })
       const memData = await memRes.json()
       const myMem = memData.memberships?.[0]
 
       if (myMem) {
         setMembership(myMem)
+        localStorage.setItem(CHAMA_MEMBERSHIP_KEY, JSON.stringify(myMem))
         if (myMem.status === 'ACTIVE') {
           setView('MEMBER')
+          localStorage.setItem(CHAMA_VIEW_KEY, 'MEMBER')
           loadMembers(found.id)
           loadContributions(found.id)
         } else if (myMem.status === 'PENDING') {
           setView('PENDING')
-        } else { setView('BROWSE') }
-      } else { setView('BROWSE') }
+          localStorage.setItem(CHAMA_VIEW_KEY, 'PENDING')
+        } else { setView('BROWSE'); localStorage.setItem(CHAMA_VIEW_KEY, 'BROWSE') }
+      } else {
+        setView('BROWSE')
+        localStorage.setItem(CHAMA_VIEW_KEY, 'BROWSE')
+      }
     } catch {
       setView('BROWSE')
       toast.error('Failed to load chama data')
@@ -194,8 +216,14 @@ export default function ChamaPage() {
         body: JSON.stringify({ chamaId: chama.id }),
       })
       const data = await res.json()
-      if (data.success) { setJoinedMsg(ui.joined); setView('PENDING') }
-      else toast.error(data.error || 'Failed to join chama')
+      if (data.success) {
+        const mem = data.membership || { id: `mem-${chama.id}`, chamaId: chama.id, status: 'PENDING', totalContributed: 0 }
+        setMembership(mem)
+        localStorage.setItem(CHAMA_MEMBERSHIP_KEY, JSON.stringify(mem))
+        setJoinedMsg(ui.joined)
+        setView('PENDING')
+        localStorage.setItem(CHAMA_VIEW_KEY, 'PENDING')
+      } else toast.error(data.error || 'Failed to join chama')
     } catch { toast.error('Network error. Please try again.') }
     setJoining(false)
   }
@@ -256,9 +284,15 @@ export default function ChamaPage() {
       })
       const data = await res.json()
       if (data.success) {
+        const c = data.chama
+        setChama(c)
+        const mem = { id: `mem-${c.id}`, userId: '', chamaId: c.id, chamaName: c.name, status: 'ACTIVE' as const, totalContributed: 0, joinedAt: new Date().toISOString() }
+        setMembership(mem)
+        localStorage.setItem(CHAMA_MEMBERSHIP_KEY, JSON.stringify(mem))
+        setView('MEMBER')
+        localStorage.setItem(CHAMA_VIEW_KEY, 'MEMBER')
         setCreateDone(ui.createSuccess)
-        setChama(data.chama)
-        setTimeout(() => { setShowCreate(false); setCreateDone(''); loadData() }, 1500)
+        setTimeout(() => { setShowCreate(false); setCreateDone(''); loadData(sessionToken) }, 1500)
       } else toast.error(data.error || 'Failed to create chama')
     } catch { toast.error('Network error. Please try again.') }
     setCreating(false)
@@ -306,7 +340,7 @@ export default function ChamaPage() {
           </div>
           <div className="bg-dark-base rounded-xl p-4 text-center">
             <Coins className="w-5 h-5 text-gold-harvest mx-auto mb-1.5" />
-            <p className="text-2xl font-bold text-text-primary">KSh {(chama.totalSavings || 0).toLocaleString()}</p>
+            <p className="text-2xl font-bold text-text-primary">KSh {Number(chama.totalSavings || 0).toLocaleString()}</p>
             <p className="text-[11px] text-text-muted">{ui.savings}</p>
           </div>
           <div className="bg-dark-base rounded-xl p-4 text-center">

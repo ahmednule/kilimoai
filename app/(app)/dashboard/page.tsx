@@ -14,6 +14,7 @@ interface CropRow {
   crop: string
   acres: string
   isRented: boolean
+  rentPerAcre?: string
 }
 
 export default function DashboardPage() {
@@ -188,7 +189,15 @@ export default function DashboardPage() {
 
   const crops = profile.crops || []
   const totalAcres = crops.reduce((sum, c) => sum + (c.acres || 0), 0)
-  const rentedAcres = crops.reduce((sum, c) => (c.isRented ? sum + (c.acres || 0) : sum), 0)
+  const perCropRented = crops.reduce((sum, c) => (c.isRented ? sum + (c.acres || 0) : sum), 0)
+  const rentedAcres = perCropRented || profile.rentedAcres || 0
+  const rentedCrops = crops.filter(c => c.isRented)
+  const rentPerAcre = rentedCrops.length > 0
+    ? Math.round(rentedCrops.reduce((s, c) => s + (c.rentPerAcre ?? 0), 0) / rentedCrops.length)
+    : (profile.rentCostPerAcre ?? 0)
+  const totalRentCharge = rentedCrops.length > 0
+    ? Math.round(rentedCrops.reduce((s, c) => s + ((c.rentPerAcre ?? 0) * (c.acres ?? 0)), 0))
+    : Math.round((profile.rentCostPerAcre ?? 0) * rentedAcres)
   const hasAssessment = !!latestAssessment
   const assessedLoan = latestAssessment?.scenarios?.recommendedMaxLoan ?? null
   const assessedLoanAmount = latestAssessment?.scenarios?.loanAmount ?? null
@@ -522,12 +531,12 @@ export default function DashboardPage() {
                   <div className="w-10 h-10 rounded-full bg-yellow-primary/10 flex items-center justify-center"><Home className="w-5 h-5 text-yellow-400" /></div>
                   <div>
                     <p className="text-sm font-medium text-text-primary">{rentedAcres.toFixed(1)} {language === 'sw' ? 'eka zilizokodiwa' : 'rented acres'}</p>
-                    <p className="text-xs text-text-muted">KES {profile.rentCostPerAcre?.toLocaleString() || '0'}/{language === 'sw' ? 'eka' : 'acre'}</p>
+                    <p className="text-xs text-text-muted">KES {rentPerAcre.toLocaleString()}/{language === 'sw' ? 'eka' : 'acre'}</p>
                   </div>
                 </div>
                 <div className="pt-3 border-t border-border-subtle flex justify-between text-sm">
                   <span className="text-text-muted">{language === 'sw' ? 'Ada ya kukodi' : 'Rent charge'}</span>
-                  <span className="text-yellow-400 font-semibold">KES {((profile.rentCostPerAcre || 0) * rentedAcres).toLocaleString()}</span>
+                  <span className="text-yellow-400 font-semibold">KES {totalRentCharge.toLocaleString()}</span>
                 </div>
               </div>
             ) : (
