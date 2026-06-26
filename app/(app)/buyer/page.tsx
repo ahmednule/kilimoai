@@ -84,7 +84,7 @@ export default function BuyerPage() {
 
   useEffect(() => {
     if (view === 'UNAUTHORIZED') {
-      const t = setTimeout(() => router.push('/auth/login'), 2000)
+      const t = setTimeout(() => router.push('/'), 2000)
       return () => clearTimeout(t)
     }
   }, [view, router])

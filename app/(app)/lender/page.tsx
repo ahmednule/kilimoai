@@ -154,7 +154,7 @@ export default function LenderDashboard() {
           <h2 className="text-lg font-semibold text-text-primary mb-2">{tr('lender.unauthorizedTitle')}</h2>
           <p className="text-sm text-text-muted mb-6">{tr('lender.unauthorizedDesc')}</p>
           <button
-            onClick={() => router.push('/auth/login')}
+            onClick={() => router.push('/')}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-green-primary text-white text-sm font-medium hover:bg-green-primary/90 transition-colors"
           >
             <Shield className="w-4 h-4" />

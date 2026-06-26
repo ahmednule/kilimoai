@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Eye, EyeOff, Loader2, ChevronsUpDown, Check, Sprout, Users, Store, ShoppingCart, Shield } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff, Loader2, ChevronsUpDown, Check, Sprout, Users, Store, ShoppingCart, Shield } from 'lucide-react'
 import { toast } from 'sonner'
 import { signup, UserRole } from '@/lib/auth'
 import { getLanguage, Language } from '@/lib/i18n'
@@ -178,7 +178,14 @@ export default function SignupPage() {
 
   return (
     <>
-      <div className="mb-8">
+      <Link
+        href="/"
+        className="inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-text-primary mb-6 transition-colors"
+      >
+        <ArrowLeft className="w-3.5 h-3.5" />
+        Back to home
+      </Link>
+      <div className="mb-6">
         <h1 className="font-serif text-2xl font-bold text-text-primary">{t.title}</h1>
         <p className="mt-1 text-sm text-text-muted">{t.subtitle}</p>
       </div>
