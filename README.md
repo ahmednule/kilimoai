@@ -2,7 +2,7 @@
 
 **Hackathon project** — built for the [kenyaaihackathon / MercyCorps](https://kenyaaichallenge.com) ecosystem.
 
-A decentralized farming fintech platform connecting Kenyan smallholder farmers with lenders, agents, buyers, and chama groups — powered by **Masumi** for AI agent-driven identity verification, payment escrow, and on-chain decision logging.
+A decentralized farming fintech platform connecting Kenyan smallholder farmers with lenders, agents, buyers, and chama groups — powered by **M-Pesa** for payments and disbursements.
 
 ## Tech Stack
 
@@ -12,8 +12,8 @@ A decentralized farming fintech platform connecting Kenyan smallholder farmers w
 | Language | TypeScript |
 | Styling | Tailwind CSS + `cn` utility |
 | Database | [Neo4j](https://neo4j.com) (graph database) |
-| Blockchain | [Cardano](https://cardano.org) via [Masumi Network](https://masumi.network) |
-| AI Agents | Masumi protocol for agent identity, payments, and audit trails |
+| Payments | M-Pesa (Daraja API) |
+| AI Agents | Custom LangChain agents for farm assessment & pest detection |
 | Package Manager | pnpm |
 
 ## User Roles
@@ -40,7 +40,7 @@ Open [http://localhost:3000](http://localhost:3000).
 Copy `.env.example` to `.env.local` and configure:
 
 - `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD` — Neo4j Aura or local instance
-- `MASUMI_API_KEY` — Masumi payment & identity API
+- `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_PASSKEY` — M-Pesa Daraja API
 
 ## Seed Data
 
