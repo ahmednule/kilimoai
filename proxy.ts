@@ -22,6 +22,7 @@ export function proxy(request: NextRequest) {
 
   const isPublic = PUBLIC_ROUTES.some(r => pathname === r || pathname.startsWith(r + '/')) ||
     pathname.startsWith('/api/auth/') ||
+    pathname.startsWith('/api/seed') ||
     pathname.startsWith('/_next/') ||
     pathname === '/favicon.ico' ||
     pathname.startsWith('/images/')

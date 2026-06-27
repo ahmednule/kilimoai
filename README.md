@@ -107,6 +107,7 @@ Copy `.env.example` to `.env.local` and configure:
 | `MPESA_CONSUMER_KEY` | M-Pesa Daraja API consumer key |
 | `MPESA_CONSUMER_SECRET` | M-Pesa Daraja API consumer secret |
 | `MPESA_PASSKEY` | M-Pesa Daraja API passkey |
+| `APP_URL` | Public URL of the app (e.g. `https://kilimo-ai.vercel.app`) — used in password reset & verification email links |
 | `AT_API_KEY` | Africa's Talking API key (USSD) |
 | `AT_USERNAME` | Africa's Talking username |
 | `AT_SHORTCODE` | Africa's Talking shortcode (`*384*53298#`) |

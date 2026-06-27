@@ -117,15 +117,23 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    await session.close()
-
     const emailSent = await sendVerificationEmail(lowerEmail, verificationToken)
+
+    // When SMTP is not configured, auto-verify the email so the user isn't stuck
+    if (!emailSent) {
+      await session.run(
+        'MATCH (u:User {id: $id}) SET u.emailVerified = true, u.verificationToken = null',
+        { id }
+      )
+    }
+
+    await session.close()
 
     return NextResponse.json({
       success: true,
       message: emailSent
         ? 'Account created! Check your email to verify your account.'
-        : 'Account created! Ask an admin to verify your account.',
+        : 'Account created! You can now log in.',
       emailSent,
     })
   } catch (err: any) {

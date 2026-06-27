@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
 
     const result = await session.run(
       `MATCH (u:User {email: $email, resetToken: $token})
-       WHERE u.resetTokenExpiry > datetime()
+       WHERE u.resetTokenExpiry > timestamp()
        RETURN u`,
       { email: lowerEmail, token }
     )

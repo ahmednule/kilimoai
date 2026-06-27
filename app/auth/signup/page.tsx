@@ -158,12 +158,14 @@ export default function SignupPage() {
       return
     }
 
-    localStorage.setItem('kilimo-signup-email', email.trim())
-    toast.success(result.emailSent
-      ? (lang === 'sw' ? 'Akaunti imeundwa! Angalia barua pepe yako.' : 'Account created! Check your email.')
-      : (lang === 'sw' ? 'Akaunti imeundwa!' : 'Account created!')
-    )
-    router.push(`/auth/verify${result.emailSent ? `?email=${encodeURIComponent(email.trim())}` : ''}`)
+    if (result.emailSent) {
+      localStorage.setItem('kilimo-signup-email', email.trim())
+      toast.success(lang === 'sw' ? 'Akaunti imeundwa! Angalia barua pepe yako.' : 'Account created! Check your email.')
+      router.push(`/auth/verify?email=${encodeURIComponent(email.trim())}`)
+    } else {
+      toast.success(lang === 'sw' ? 'Akaunti imeundwa! Unaweza kuingia sasa.' : 'Account created! You can log in now.')
+      router.push('/auth/login')
+    }
   }
 
   const handleGoogleClick = () => {

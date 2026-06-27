@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     }
 
     const resetToken = crypto.randomBytes(32).toString('hex')
-    const expiry = new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 hour
+    const expiry = Date.now() + 60 * 60 * 1000 // 1 hour, in epoch ms
 
     await session.run(
       'MATCH (u:User {email: $email}) SET u.resetToken = $token, u.resetTokenExpiry = $expiry',
