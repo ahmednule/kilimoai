@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import {
   Sprout, MessageSquare, History, Building2, Users, Bug, UserCog, LogOut,
   LayoutDashboard, ClipboardCheck, ShieldCheck, Bot, ShoppingCart, Store,
-  Shield, BarChart3, Settings, FileText, CalendarCheck, Menu,
+  Shield, BarChart3, Settings, FileText, CalendarCheck, Menu, DollarSign,
 } from 'lucide-react'
 import { FarmerProfile, Language, RiskLevel } from '@/lib/types'
 import { getSession, type UserRole } from '@/lib/auth'
@@ -37,7 +37,9 @@ const AGENT_NAV = [
 const LENDER_NAV = [
   { label: 'Dashboard',      icon: LayoutDashboard,   href: '/lender'             },
   { label: 'Applications',   icon: FileText,          href: '/lender'             },
-  { label: 'Portfolio',      icon: BarChart3,         href: '/lender/portfolio'    },
+  { label: 'Farmers',        icon: Users,             href: '/lender/farmers'     },
+  { label: 'Loan Products',  icon: DollarSign,        href: '/lender/products'    },
+  { label: 'Portfolio',      icon: BarChart3,         href: '/lender/portfolio'   },
   { label: 'AI Assistant',   icon: Bot,               href: '/chatbot'            },
   { label: 'Profile',        icon: UserCog,           href: '/profile'            },
 ]

@@ -27,51 +27,35 @@ async function getUserFromToken(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    const agent = await getUserFromToken(req)
-    if (!agent) {
+    const lender = await getUserFromToken(req)
+    if (!lender) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
-    if (agent.role !== 'agent') {
-      return NextResponse.json({ success: false, error: 'Agent role required' }, { status: 403 })
+    if (lender.role !== 'lender') {
+      return NextResponse.json({ success: false, error: 'Lender role required' }, { status: 403 })
     }
-
-    const { searchParams } = new URL(req.url)
-    const statusFilter = searchParams.get('status') || 'all'
 
     const session = getSession()
     try {
-      // Build status condition
-      const statusConditions: Record<string, string> = {
-        pending:  `WHERE (farmer.verified <> true OR farmer.verified IS NULL)`,
-        verified: `WHERE farmer.verified = true`,
-        flagged:  `WHERE EXISTS { MATCH (vr:VerificationReport {farmerId: farmer.id, status: 'flagged'}) }`,
-      }
-      const statusWhere = statusConditions[statusFilter] || ''
-
-      const query = `
-        MATCH (farmer:User)-[:HAS_ROLE]->(r:Role {name: 'farmer'})
-        ${statusWhere}
+      const result = await session.run(`
+        MATCH (farmer:User)-[:HAS_ROLE]->(:Role {name: 'farmer'})
+        WHERE farmer.verified = true
         OPTIONAL MATCH (farmer)-[:GROWS]->(c:Crop)
         OPTIONAL MATCH (farmer)-[:LOCATED_IN]->(co:County)
         OPTIONAL MATCH (farmer)-[:APPLIED_FOR]->(l:Loan)
         OPTIONAL MATCH (farmer)-[:MEMBER_OF]->(cg:ChamaGroup)
-        OPTIONAL MATCH (agent:User {id: $agentId})-[:SUPERVISES]-(farmer)
         RETURN farmer,
                collect(DISTINCT c.name) AS crops,
                co.name AS countyName,
                collect(DISTINCT l {.id, .amount, .status}) AS loans,
-               cg.name AS chamaName,
-               agent.id IS NOT NULL AS assigned
+               cg.name AS chamaName
         ORDER BY farmer.name
-      `
-
-      const result = await session.run(query, { agentId: agent.id })
+      `)
 
       const farmers = result.records.map(r => {
         const f = r.get('farmer').properties
         const crops = r.get('crops') || []
         const loans = r.get('loans') || []
-        const activeLoan = loans.find((l: any) => l?.status === 'pending_verification' || l?.status === 'pending')
         return {
           id: f.id,
           name: f.name,
@@ -79,31 +63,24 @@ export async function GET(req: NextRequest) {
           county: r.get('countyName') || '',
           crops,
           acreage: f.acreage || 0,
-          loanAmount: activeLoan?.amount || f.loanAmount || 0,
-          status: f.verified === true ? 'verified' : 'pending',
           creditScore: f.creditScore || 0,
           language: f.language || 'en',
           hasChama: !!r.get('chamaName'),
           chamaName: r.get('chamaName') || null,
-          assigned: r.get('assigned') === true,
+          verified: true,
         }
       })
-
-      // Determine status for stats
-      const total = farmers.length
-      const pending = farmers.filter(f => f.status === 'pending').length
-      const verified = farmers.filter(f => f.status === 'verified').length
 
       return NextResponse.json({
         success: true,
         farmers,
-        stats: { total, pending, verified },
+        total: farmers.length,
       })
     } finally {
       await session.close()
     }
   } catch (err: any) {
-    console.error('[agent farmers]', err.message || err)
+    console.error('[lender farmers]', err.message || err)
     return NextResponse.json({ success: false, error: 'Something went wrong' }, { status: 500 })
   }
 }

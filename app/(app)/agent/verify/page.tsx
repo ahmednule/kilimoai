@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { ClipboardCheck, ArrowRight, Loader2 } from 'lucide-react'
+import { ClipboardCheck, ArrowRight, Loader2, UserCheck } from 'lucide-react'
 import { getToken } from '@/lib/auth'
 
 export default function VerifyPage() {
@@ -29,17 +29,23 @@ export default function VerifyPage() {
         <span>Agent / Verify Farmers</span>
       </div>
       <h1 className="text-xl sm:text-2xl font-serif font-bold text-text-primary mb-3">Verify Farmers</h1>
-      <p className="text-text-muted text-sm mb-6">Select a farmer to review and verify their information.</p>
+      <p className="text-text-muted text-sm mb-6">Review and verify farmers who have pending information. Verifying a farmer makes them visible to lenders.</p>
 
       <div className="grid gap-3">
         {farmers.map(f => (
           <Link key={f.id} href={`/agent/verify/${f.id}`}
             className="bg-dark-mid border border-border-subtle rounded-xl p-4 hover:border-green-primary/30 transition-colors flex items-center justify-between group">
-            <div>
-              <span className="text-sm text-text-primary font-medium">{f.name}</span>
-              <span className="text-xs text-text-muted ml-3">{f.county}</span>
-              {f.crops?.[0] && <span className="text-xs text-text-muted ml-3">{f.crops[0]} — {f.acreage} ac</span>}
-              {f.hasChama && <span className="text-xs text-gold-harvest ml-3">Chama</span>}
+            <div className="flex items-center gap-3">
+              <div>
+                <span className="text-sm text-text-primary font-medium">{f.name}</span>
+                <span className="text-xs text-text-muted ml-3">{f.county}</span>
+                {f.crops?.[0] && <span className="text-xs text-text-muted ml-3">{f.crops[0]} — {f.acreage} ac</span>}
+                {f.hasChama && <span className="text-xs text-gold-harvest ml-3">Chama</span>}
+              </div>
+              <span className="text-xs text-text-muted flex items-center gap-1">
+                {f.assigned && <UserCheck className="w-3 h-3 text-sky-blue" />}
+                {f.assigned ? 'Assigned' : 'Unassigned'}
+              </span>
             </div>
             <ArrowRight className="w-4 h-4 text-text-muted group-hover:text-green-primary transition-colors" />
           </Link>

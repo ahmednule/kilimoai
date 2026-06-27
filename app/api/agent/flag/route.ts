@@ -47,21 +47,21 @@ export async function POST(req: NextRequest) {
 
     const session = getSession()
     try {
-      // Check agent supervises this farmer
-      const supervisionCheck = await session.run(
-        `MATCH (agent:User {id: $agentId})-[:SUPERVISES]->(farmer:User {id: $farmerId})
+      // Ensure farmer exists and has 'farmer' role
+      const farmerCheck = await session.run(
+        `MATCH (farmer:User {id: $farmerId})-[:HAS_ROLE]->(:Role {name: 'farmer'})
          RETURN farmer`,
-        { agentId: agent.id, farmerId }
+        { farmerId }
       )
-
-      if (supervisionCheck.records.length === 0) {
-        return NextResponse.json({ success: false, error: 'This farmer is not assigned to you' }, { status: 403 })
+      if (farmerCheck.records.length === 0) {
+        return NextResponse.json({ success: false, error: 'Farmer not found' }, { status: 404 })
       }
 
       const reportId = `vr-${farmerId}-${Date.now()}`
 
       await session.run(
         `MATCH (agent:User {id: $agentId}), (farmer:User {id: $farmerId})
+         MERGE (agent)-[:SUPERVISES]->(farmer)
          CREATE (vr:VerificationReport {
            id: $reportId,
            farmerId: $farmerId,

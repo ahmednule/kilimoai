@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { LayoutDashboard, Users, ClipboardCheck, ShieldAlert, CalendarDays, ArrowUpRight, Search, Phone, MapPin, Sprout } from 'lucide-react'
+import { LayoutDashboard, Users, ClipboardCheck, ShieldAlert, CalendarDays, ArrowUpRight, Search, Phone, MapPin, Sprout, UserCheck } from 'lucide-react'
 import { getToken } from '@/lib/auth'
 
 interface ApiFarmer {
@@ -17,6 +17,7 @@ interface ApiFarmer {
   creditScore: number
   language: string
   hasChama: boolean
+  assigned: boolean
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
@@ -31,6 +32,7 @@ export default function AgentDashboardPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [loading, setLoading] = useState(true)
+  const [assignedCount, setAssignedCount] = useState(0)
 
   useEffect(() => {
     loadFarmers()
@@ -45,8 +47,10 @@ export default function AgentDashboardPage() {
       })
       const data = await res.json()
       if (data.success) {
-        setFarmers(data.farmers)
+        const all = data.farmers || []
+        setFarmers(all)
         setStats(data.stats)
+        setAssignedCount(all.filter((f: ApiFarmer) => f.assigned).length)
       }
     } catch {}
     setLoading(false)
@@ -68,10 +72,10 @@ export default function AgentDashboardPage() {
   }
 
   const statCards = [
-    { label: 'Total Assigned', value: stats.total, icon: Users, color: 'text-green-primary', bg: 'bg-green-primary/10' },
+    { label: 'Total Farmers', value: stats.total, icon: Users, color: 'text-green-primary', bg: 'bg-green-primary/10' },
     { label: 'Pending', value: stats.pending, icon: ClipboardCheck, color: 'text-risk-medium', bg: 'bg-risk-medium/10' },
     { label: 'Verified', value: stats.verified, icon: ShieldAlert, color: 'text-risk-low', bg: 'bg-risk-low/10' },
-    { label: 'Flagged', value: '—', icon: CalendarDays, color: 'text-sky-blue', bg: 'bg-sky-blue/10' },
+    { label: 'Assigned', value: assignedCount, icon: UserCheck, color: 'text-sky-blue', bg: 'bg-sky-blue/10' },
   ]
 
   return (
@@ -81,8 +85,8 @@ export default function AgentDashboardPage() {
           <LayoutDashboard className="w-3.5 h-3.5" />
           <span>Agent Dashboard</span>
         </div>
-        <h1 className="text-xl sm:text-2xl font-serif font-bold text-text-primary">My Assigned Farmers</h1>
-        <p className="text-sm text-text-muted mt-1">Verify, flag, and schedule field visits for farmers in your area</p>
+        <h1 className="text-xl sm:text-2xl font-serif font-bold text-text-primary">Farmer Registry</h1>
+        <p className="text-sm text-text-muted mt-1">View all farmers, verify information, and manage field visits</p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
@@ -111,6 +115,7 @@ export default function AgentDashboardPage() {
           <option value="all">All Status</option>
           <option value="pending">Pending</option>
           <option value="verified">Verified</option>
+          <option value="flagged">Flagged</option>
         </select>
       </div>
 
@@ -126,6 +131,11 @@ export default function AgentDashboardPage() {
                   <div className="flex items-center gap-2 mb-1.5">
                     <h3 className="font-serif font-semibold text-text-primary text-sm truncate">{farmer.name}</h3>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${status.color} ${status.bg}`}>{status.label}</span>
+                    {farmer.assigned && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded font-medium text-sky-blue bg-sky-blue/10 flex items-center gap-0.5">
+                        <UserCheck className="w-2.5 h-2.5" /> Assigned
+                      </span>
+                    )}
                     {farmer.hasChama && <span className="text-[10px] px-1.5 py-0.5 rounded font-medium text-gold-harvest bg-gold-harvest/10">Chama</span>}
                   </div>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">

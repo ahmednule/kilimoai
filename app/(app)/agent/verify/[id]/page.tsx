@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, MapPin, Phone, Sprout, ShieldCheck, AlertTriangle, Loader2, CheckCircle2, Users } from 'lucide-react'
+import { ArrowLeft, MapPin, Phone, Sprout, ShieldCheck, AlertTriangle, Loader2, CheckCircle2, Users, UserCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { getToken } from '@/lib/auth'
 
@@ -113,11 +113,18 @@ export default function VerifyFarmerPage() {
             <p className="text-xs text-text-muted mb-0.5">Farmer</p>
             <h1 className="text-xl font-serif font-bold text-text-primary">{farmer.name}</h1>
           </div>
-          <span className={`text-xs px-2 py-1 rounded font-medium ${
-            farmer.status === 'verified' ? 'text-risk-low bg-risk-low/10' : 'text-risk-medium bg-risk-medium/10'
-          }`}>
-            {farmer.status === 'verified' ? 'Verified' : 'Pending verification'}
-          </span>
+          <div className="flex items-center gap-2">
+            {farmer.assigned && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded font-medium text-sky-blue bg-sky-blue/10 flex items-center gap-0.5">
+                <UserCheck className="w-2.5 h-2.5" /> Assigned
+              </span>
+            )}
+            <span className={`text-xs px-2 py-1 rounded font-medium ${
+              farmer.status === 'verified' ? 'text-risk-low bg-risk-low/10' : 'text-risk-medium bg-risk-medium/10'
+            }`}>
+              {farmer.status === 'verified' ? 'Verified' : 'Pending verification'}
+            </span>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-6">
@@ -143,6 +150,11 @@ export default function VerifyFarmerPage() {
         {farmer.status !== 'verified' && (
           <div className="border-t border-border-subtle pt-4 space-y-3">
             <p className="text-sm text-text-primary font-medium">Verification Actions</p>
+            <p className="text-xs text-text-muted">
+              {farmer.assigned
+                ? 'Review farmer details before marking as verified or flagging discrepancies.'
+                : 'Verify this farmer to assign them to your supervision and make them visible to lenders.'}
+            </p>
             <div className="flex flex-wrap gap-2">
               <button onClick={handleVerify} disabled={verifying}
                 className="inline-flex items-center gap-1.5 px-4 py-2 bg-risk-low/10 border border-risk-low/30 text-risk-low text-sm font-medium rounded-xl hover:bg-risk-low/20 transition-colors disabled:opacity-50">
@@ -158,11 +170,14 @@ export default function VerifyFarmerPage() {
           </div>
         )}
         {farmer.status === 'verified' && (
-          <div className="border-t border-border-subtle pt-4">
+          <div className="border-t border-border-subtle pt-4 space-y-2">
             <div className="flex items-center gap-2 text-sm text-risk-low">
               <CheckCircle2 className="w-4 h-4" />
               This farmer has been verified
             </div>
+            <p className="text-xs text-text-muted">
+              Verified farmers are visible to lenders for loan matching.
+            </p>
           </div>
         )}
       </div>
