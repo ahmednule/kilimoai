@@ -8,7 +8,7 @@ import {
   CheckCircle2, Clock, XCircle, Plus, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Language } from '@/lib/types'
+import { Language, MarketListing } from '@/lib/types'
 import { getSession, getToken } from '@/lib/auth'
 import { getLanguage } from '@/lib/i18n'
 import { KENYAN_COUNTIES, CROPS } from '@/lib/constants'
@@ -16,19 +16,7 @@ import { toast } from 'sonner'
 
 type View = 'LOADING' | 'UNAUTHORIZED' | 'DASHBOARD'
 
-interface Listing {
-  id: string
-  crop: string
-  quantity: number
-  unit: string
-  price: number
-  seller: string
-  county: string
-  quality: string
-  available: string
-  status: string
-  date: string
-}
+type Listing = MarketListing
 
 interface Order {
   id: string
@@ -122,10 +110,10 @@ export default function BuyerPage() {
           listingId: listing.id,
           buyerId: 'u-buyer',
           buyerName: 'Twiga Foods',
-          seller: listing.seller,
+          seller: listing.farmerName,
           crop: listing.crop,
           quantity: orderQty,
-          price: listing.price,
+          price: listing.pricePerUnit,
           county: listing.county,
         }),
       })
@@ -165,9 +153,9 @@ export default function BuyerPage() {
     )
   }
 
-  const activeListings = listings.filter(l => l.status === 'active')
+  const activeListings = listings.filter(l => l.status === 'active' && l.verificationStatus === 'verified')
   const filteredListings = activeListings.filter(l => {
-    if (search && !l.seller.toLowerCase().includes(search.toLowerCase()) && !l.crop.toLowerCase().includes(search.toLowerCase())) return false
+    if (search && !l.farmerName.toLowerCase().includes(search.toLowerCase()) && !l.crop.toLowerCase().includes(search.toLowerCase())) return false
     if (countyFilter && l.county !== countyFilter) return false
     if (cropFilter && l.crop !== cropFilter) return false
     return true
@@ -293,7 +281,7 @@ export default function BuyerPage() {
                           <span className="text-[11px] text-orange-400 font-medium">{item.quality}</span>
                         </div>
                       </div>
-                      <span className="text-lg font-bold text-orange-400">KES {item.price.toLocaleString()}</span>
+                      <span className="text-lg font-bold text-orange-400">KES {item.pricePerUnit.toLocaleString()}</span>
                     </div>
                     <div className="space-y-2 mb-4">
                       <div className="flex items-center gap-2 text-xs text-text-muted">
@@ -307,7 +295,7 @@ export default function BuyerPage() {
                       </div>
                     </div>
                     <div className="flex items-center justify-between pt-3 border-t border-border-subtle">
-                      <span className="text-xs text-text-muted">{item.seller}</span>
+                      <span className="text-xs text-text-muted">{item.farmerName}</span>
                       <button onClick={() => { setShowOrder(item); setOrderQty(1) }}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-400 text-dark-base text-xs font-medium rounded-lg hover:bg-orange-500 transition-colors">
                         <Plus className="w-3.5 h-3.5" />
@@ -383,8 +371,8 @@ export default function BuyerPage() {
             </h2>
             <div className="space-y-4">
               <div className="bg-dark-base rounded-xl p-3 space-y-1">
-                <p className="text-xs text-text-muted">{showOrder.seller} &middot; {showOrder.county}</p>
-                <p className="text-sm text-text-primary">KES {showOrder.price.toLocaleString()} / {showOrder.unit}</p>
+                <p className="text-xs text-text-muted">{showOrder.farmerName} &middot; {showOrder.county}</p>
+                <p className="text-sm text-text-primary">KES {showOrder.pricePerUnit.toLocaleString()} / {showOrder.unit}</p>
               </div>
               <div>
                 <label className="text-xs text-text-muted mb-1 block">{lang === 'sw' ? 'Idadi' : 'Quantity'} ({showOrder.unit})</label>
@@ -393,7 +381,7 @@ export default function BuyerPage() {
               </div>
               <div className="flex justify-between items-center py-2 border-t border-border-subtle">
                 <span className="text-sm text-text-muted">{lang === 'sw' ? 'Jumla' : 'Total'}</span>
-                <span className="text-lg font-bold text-orange-400">KES {(showOrder.price * orderQty).toLocaleString()}</span>
+                <span className="text-lg font-bold text-orange-400">KES {(showOrder.pricePerUnit * orderQty).toLocaleString()}</span>
               </div>
               <button onClick={() => handlePlaceOrder(showOrder)} disabled={placing || orderQty < 1}
                 className="w-full py-3 rounded-xl bg-orange-400 text-dark-base font-semibold hover:bg-orange-500 transition-all disabled:opacity-50">

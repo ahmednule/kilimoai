@@ -94,32 +94,24 @@ const UI_TEXT = {
   }
 }
 
+const LANG_OPTIONS: { code: Language; label: string }[] = [
+  { code: 'en', label: 'English (EN)' },
+  { code: 'sw', label: 'Kiswahili (SW)' },
+  { code: 'ki', label: 'Gĩkũyũ (KI)' },
+  { code: 'lu', label: 'Dholuo (LU)' },
+]
+
 function LanguageToggle({ language, onChange }: { language: Language; onChange: (lang: Language) => void }) {
   return (
-    <div className="flex items-center gap-1 rounded-full bg-dark-mid p-1">
-      <button
-        type="button"
-        onClick={() => onChange('en')}
-        className={`min-w-[44px] min-h-[44px] flex items-center justify-center text-sm font-medium rounded-full transition-all duration-200 ${
-          language === 'en'
-            ? "bg-green-primary text-text-primary"
-            : "text-text-muted hover:text-text-primary"
-        }`}
-      >
-        EN
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange('sw')}
-        className={`min-w-[44px] min-h-[44px] flex items-center justify-center text-sm font-medium rounded-full transition-all duration-200 ${
-          language === 'sw'
-            ? "bg-green-primary text-text-primary"
-            : "text-text-muted hover:text-text-primary"
-        }`}
-      >
-        SW
-      </button>
-    </div>
+    <select
+      value={language}
+      onChange={e => onChange(e.target.value as Language)}
+      className="px-3 py-1.5 text-sm font-medium rounded-lg bg-dark-mid border border-border-subtle text-text-primary focus:outline-none focus:border-green-primary/50 cursor-pointer appearance-none"
+    >
+      {LANG_OPTIONS.map(l => (
+        <option key={l.code} value={l.code}>{l.label}</option>
+      ))}
+    </select>
   )
 }
 

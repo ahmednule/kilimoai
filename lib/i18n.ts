@@ -1,24 +1,18 @@
-export type Language = 'en' | 'sw'
+import type { Language } from './types'
 
 const I18N_KEY = 'kilimo-lang'
+const VALID_LANGS: Language[] = ['en', 'sw', 'ki', 'lu']
 
 export function getLanguage(): Language {
   if (typeof window === 'undefined') return 'en'
   const stored = localStorage.getItem(I18N_KEY)
-  if (stored === 'en' || stored === 'sw') return stored
+  if (VALID_LANGS.includes(stored as Language)) return stored as Language
   return 'en'
 }
 
 export function setLanguage(lang: Language): void {
   if (typeof window === 'undefined') return
   localStorage.setItem(I18N_KEY, lang)
-}
-
-export function toggleLanguage(): Language {
-  const current = getLanguage()
-  const next: Language = current === 'en' ? 'sw' : 'en'
-  setLanguage(next)
-  return next
 }
 
 type TranslationDict = Record<string, string>

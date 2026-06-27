@@ -1,4 +1,11 @@
-export type Language = 'en' | 'sw'
+export type Language = 'en' | 'sw' | 'ki' | 'lu'
+
+export const LANGUAGES: { code: Language; label: string; native: string }[] = [
+  { code: 'en', label: 'English', native: 'English' },
+  { code: 'sw', label: 'Swahili', native: 'Kiswahili' },
+  { code: 'ki', label: 'Kikuyu', native: 'Gĩkũyũ' },
+  { code: 'lu', label: 'Luo', native: 'Dholuo' },
+]
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'UNKNOWN'
 export type Severity = 'LOW' | 'MEDIUM' | 'HIGH' | 'UNKNOWN'
 export type Rainfall = 'good' | 'average' | 'poor'
@@ -177,6 +184,40 @@ export interface PaymentRecord {
   amount: number
   method: 'MPESA' | 'BANK'
   mpesaRef?: string
+}
+
+export type ListingVerificationStatus = 'pending_verification' | 'verified' | 'rejected' | 'sold'
+
+export interface MarketListing {
+  id: string
+  farmerId: string
+  farmerName: string
+  crop: string
+  quantity: number
+  unit: string
+  pricePerUnit: number
+  county: string
+  quality: string
+  verificationStatus: ListingVerificationStatus
+  status: string
+  date: string
+  available: string
+  agentNotes?: string
+}
+
+export interface ListingOrder {
+  id: string
+  listingId: string
+  buyerId: string
+  buyerName: string
+  seller: string
+  crop: string
+  quantity: number
+  price: number
+  total: number
+  county: string
+  status: string
+  date: string
 }
 
 export interface VisitSchedule {

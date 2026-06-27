@@ -140,31 +140,23 @@ export function CountUp({ target, label, duration = 2 }: { target: number; label
   )
 }
 
+const LANGUAGES = [
+  { code: 'en' as Language, native: 'English', label: 'EN' },
+  { code: 'sw' as Language, native: 'Kiswahili', label: 'SW' },
+  { code: 'ki' as Language, native: 'Gĩkũyũ', label: 'KI' },
+  { code: 'lu' as Language, native: 'Dholuo', label: 'LU' },
+]
+
 export function LanguageToggle({ language, onChange }: { language: Language; onChange: (lang: Language) => void }) {
   return (
-    <div className="flex items-center gap-1 rounded-full bg-dark-mid p-1">
-      <button
-        type="button"
-        onClick={() => onChange('en')}
-        className={`min-w-[44px] min-h-[44px] flex items-center justify-center text-sm font-medium rounded-full transition-all duration-200 active:scale-95 ${
-          language === 'en'
-            ? 'bg-green-primary text-text-primary'
-            : 'text-text-muted hover:text-text-primary'
-        }`}
-      >
-        EN
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange('sw')}
-        className={`min-w-[44px] min-h-[44px] flex items-center justify-center text-sm font-medium rounded-full transition-all duration-200 active:scale-95 ${
-          language === 'sw'
-            ? 'bg-green-primary text-text-primary'
-            : 'text-text-muted hover:text-text-primary'
-        }`}
-      >
-        SW
-      </button>
-    </div>
+    <select
+      value={language}
+      onChange={e => onChange(e.target.value as Language)}
+      className="px-3 py-1.5 text-sm font-medium rounded-lg bg-dark-mid border border-border-subtle text-text-primary focus:outline-none focus:border-green-primary/50 cursor-pointer appearance-none"
+    >
+      {LANGUAGES.map(l => (
+        <option key={l.code} value={l.code}>{l.native} ({l.label})</option>
+      ))}
+    </select>
   )
 }

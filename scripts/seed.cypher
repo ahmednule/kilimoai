@@ -509,11 +509,14 @@ CREATE (:MarketListing {
   unit: 'bags',
   pricePerUnit: 3500,
   seller: 'Jane Muthoni',
+  farmerName: 'Jane Muthoni',
+  farmerId: 'u-farmer-1',
   county: 'Kiambu',
   date: '2026-05-20',
   status: 'active',
   quality: 'Grade 1',
-  available: 'Jun 2026'
+  available: 'Jun 2026',
+  verificationStatus: 'verified'
 });
 
 CREATE (:MarketListing {
@@ -523,11 +526,14 @@ CREATE (:MarketListing {
   unit: 'bags',
   pricePerUnit: 8500,
   seller: 'Mary Wanjiku',
+  farmerName: 'Mary Wanjiku',
+  farmerId: 'u-farmer-2',
   county: 'Nyeri',
   date: '2026-05-18',
   status: 'active',
   quality: 'Premium',
-  available: 'Jun 2026'
+  available: 'Jun 2026',
+  verificationStatus: 'verified'
 });
 
 CREATE (:MarketListing {
@@ -537,11 +543,14 @@ CREATE (:MarketListing {
   unit: 'bags',
   pricePerUnit: 6500,
   seller: 'John Ochieng',
+  farmerName: 'John Ochieng',
+  farmerId: 'u-farmer-3',
   county: 'Kisumu',
   date: '2026-05-15',
   status: 'sold',
   quality: 'Grade 2',
-  available: 'May 2026'
+  available: 'May 2026',
+  verificationStatus: 'sold'
 });
 
 CREATE (:MarketListing {
@@ -551,11 +560,14 @@ CREATE (:MarketListing {
   unit: 'kg',
   pricePerUnit: 280,
   seller: 'Sarah Chebet',
+  farmerName: 'Sarah Chebet',
+  farmerId: 'u-farmer-4',
   county: 'Nandi',
   date: '2026-05-22',
   status: 'active',
   quality: 'Premium',
-  available: 'Jun 2026'
+  available: 'Jun 2026',
+  verificationStatus: 'verified'
 });
 
 CREATE (:MarketListing {
@@ -565,11 +577,14 @@ CREATE (:MarketListing {
   unit: 'bags',
   pricePerUnit: 2800,
   seller: 'James Kibet',
+  farmerName: 'James Kibet',
+  farmerId: 'u-farmer-5',
   county: 'Elgeyo-Marakwet',
   date: '2026-05-19',
   status: 'active',
   quality: 'Grade 1',
-  available: 'Jul 2026'
+  available: 'Jul 2026',
+  verificationStatus: 'verified'
 });
 
 CREATE (:MarketListing {
@@ -579,11 +594,14 @@ CREATE (:MarketListing {
   unit: 'crates',
   pricePerUnit: 4500,
   seller: 'Peter Mwangi',
+  farmerName: 'Peter Mwangi',
+  farmerId: 'u-farmer-6',
   county: "Murang'a",
   date: '2026-05-21',
   status: 'active',
   quality: 'Grade 1',
-  available: 'Jun 2026'
+  available: 'Jun 2026',
+  verificationStatus: 'verified'
 });
 
 CREATE (:MarketListing {
@@ -593,11 +611,14 @@ CREATE (:MarketListing {
   unit: 'bags',
   pricePerUnit: 4200,
   seller: 'Grace Akinyi',
+  farmerName: 'Grace Akinyi',
+  farmerId: 'u-farmer-7',
   county: 'Homa Bay',
   date: '2026-05-25',
   status: 'active',
   quality: 'Organic',
-  available: 'Jul 2026'
+  available: 'Jul 2026',
+  verificationStatus: 'verified'
 });
 
 CREATE (:MarketListing {
@@ -607,11 +628,14 @@ CREATE (:MarketListing {
   unit: 'bags',
   pricePerUnit: 3800,
   seller: 'David Kiprop',
+  farmerName: 'David Kiprop',
+  farmerId: 'u-farmer-8',
   county: 'Uasin Gishu',
   date: '2026-05-23',
   status: 'active',
   quality: 'Grade 1',
-  available: 'Aug 2026'
+  available: 'Aug 2026',
+  verificationStatus: 'verified'
 });
 
 // ============================================================

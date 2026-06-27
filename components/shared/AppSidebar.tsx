@@ -16,18 +16,20 @@ import { useChatBot } from '@/components/chatbot/ChatBotContext'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 
 const FARMER_NAV = [
-  { label: 'Assessment',    icon: MessageSquare,    href: '/chat'      },
-  { label: 'My history',    icon: History,          href: '/dashboard' },
-  { label: 'AI Assistant',  icon: Bot,              href: '/chatbot'   },
-  { label: 'Loan products', icon: Building2,        href: '/loans'     },
-  { label: 'Chama',         icon: Users,            href: '/chama'     },
-  { label: 'Pest check',    icon: Bug,              href: '/pest-check'},
-  { label: 'Profile',       icon: UserCog,          href: '/profile'   },
+  { label: 'Assessment',    icon: MessageSquare,    href: '/chat'              },
+  { label: 'My history',    icon: History,          href: '/dashboard'         },
+  { label: 'My Yields',     icon: Store,            href: '/marketplace/my-listings' },
+  { label: 'AI Assistant',  icon: Bot,              href: '/chatbot'           },
+  { label: 'Loan products', icon: Building2,        href: '/loans'             },
+  { label: 'Chama',         icon: Users,            href: '/chama'             },
+  { label: 'Pest check',    icon: Bug,              href: '/pest-check'        },
+  { label: 'Profile',       icon: UserCog,          href: '/profile'           },
 ]
 
 const AGENT_NAV = [
   { label: 'Dashboard',      icon: LayoutDashboard,   href: '/agent/dashboard' },
   { label: 'Verify Farmers', icon: ClipboardCheck,    href: '/agent/verify'    },
+  { label: 'Verify Yields',  icon: Store,             href: '/agent/listings'  },
   { label: 'Flagged',        icon: ShieldCheck,       href: '/agent/flagged'   },
   { label: 'Schedule',       icon: CalendarCheck,     href: '/agent/schedule'  },
   { label: 'AI Assistant',   icon: Bot,               href: '/chatbot'         },

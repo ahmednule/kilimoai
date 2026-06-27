@@ -3,6 +3,13 @@ import type { NextRequest } from 'next/server'
 
 const PUBLIC_ROUTES = [
   '/',
+  '/about',
+  '/features',
+  '/how-it-works',
+  '/learn/chama',
+  '/learn/loans',
+  '/pest-disease',
+  '/privacy',
   '/auth/login',
   '/auth/signup',
   '/auth/verify',
