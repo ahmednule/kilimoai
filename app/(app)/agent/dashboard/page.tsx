@@ -28,7 +28,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
 
 export default function AgentDashboardPage() {
   const [farmers, setFarmers] = useState<ApiFarmer[]>([])
-  const [stats, setStats] = useState({ total: 0, pending: 0, verified: 0 })
+  const [stats, setStats] = useState({ total: 0, pending: 0, verified: 0, flagged: 0 })
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [loading, setLoading] = useState(true)

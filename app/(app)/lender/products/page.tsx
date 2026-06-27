@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Landmark, Plus, Users, Search, Filter, ChevronDown, MapPin, Sprout,
-  DollarSign, Clock, CheckCircle2, AlertTriangle, BadgeCheck, X,
+  DollarSign, Clock, CheckCircle2, AlertTriangle,   BadgeCheck, X, Shield,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getSession, getToken } from '@/lib/auth'

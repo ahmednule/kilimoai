@@ -5,44 +5,35 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const productId = searchParams.get('productId') || ''
+    const farmerId = searchParams.get('farmerId') || ''
 
     const session = getSession()
     try {
-      let query = `
-        MATCH (la:LoanApplication)
-        OPTIONAL MATCH (u:User)-[:HAS_PROFILE]->(:FarmerProfile)-[:HAS_LOAN]->(la)
-        RETURN la,
-               u.id AS userId, u.name AS userName, u.email AS userEmail, u.phone AS userPhone
-        ORDER BY la.date DESC
-      `
       const params: Record<string, any> = {}
-      if (productId) {
-        query = `
-          MATCH (la:LoanApplication {productId: $productId})
-          OPTIONAL MATCH (u:User)-[:HAS_PROFILE]->(:FarmerProfile)-[:HAS_LOAN]->(la)
-          RETURN la,
-                 u.id AS userId, u.name AS userName, u.email AS userEmail, u.phone AS userPhone
-          ORDER BY la.date DESC
-        `
-        params.productId = productId
-      }
+      let where = ''
+      if (productId) { where = 'WHERE la.productId = $productId'; params.productId = productId }
+      if (farmerId) { where = 'WHERE la.farmerId = $farmerId'; params.farmerId = farmerId }
 
-      const result = await session.run(query, params)
+      const result = await session.run(`
+        MATCH (la:LoanApplication)
+        ${where}
+        RETURN la
+        ORDER BY la.date DESC
+      `, params)
+
       const applications = result.records.map(r => {
         const props = r.get('la').properties
         return {
           id: props.id,
           productId: props.productId || '',
           farmerId: props.farmerId || '',
-          farmerName: props.farmerName || r.get('userName') || '',
-          farmerEmail: r.get('userEmail') || '',
-          farmerPhone: r.get('userPhone') || '',
-          amount: props.amount ? props.amount.toNumber() : 0,
+          farmerName: props.farmerName || '',
+          amount: props.amount ? Number(props.amount) : 0,
           status: props.status || 'pending',
           date: props.date ? props.date.toString() : '',
           county: props.county || '',
           crop: props.crop || '',
-          acres: props.acres ? props.acres.toNumber() : 0,
+          acres: props.acres ? Number(props.acres) : 0,
           riskLevel: props.riskLevel || 'UNKNOWN',
         }
       })
@@ -71,8 +62,18 @@ export async function POST(req: NextRequest) {
 
     const session = getSession()
     try {
+      // Find User with farmer role
+      const userCheck = await session.run(
+        `MATCH (u:User {id: $farmerId})-[:HAS_ROLE]->(:Role {name: 'farmer'})
+         RETURN u`,
+        { farmerId }
+      )
+      if (userCheck.records.length === 0) {
+        return NextResponse.json({ success: false, error: 'Farmer not found' }, { status: 404 })
+      }
+
       await session.run(`
-        MATCH (fp:FarmerProfile {id: $farmerId})
+        MATCH (u:User {id: $farmerId})
         CREATE (la:LoanApplication {
           id: $id,
           productId: $productId,
@@ -86,7 +87,7 @@ export async function POST(req: NextRequest) {
           acres: $acres,
           riskLevel: $riskLevel
         })
-        CREATE (fp)-[:HAS_LOAN]->(la)
+        CREATE (u)-[:APPLIED_FOR]->(la)
         RETURN la
       `, { id, productId, farmerId, farmerName: farmerName || '', amount, today, county: county || '', crop: crop || '', acres: acres || 0, riskLevel: riskLevel || 'UNKNOWN' })
 
@@ -96,9 +97,6 @@ export async function POST(req: NextRequest) {
     }
   } catch (err: any) {
     console.error('[loan-applications POST]', err.message || err)
-    if (err.message?.includes('MATCH')) {
-      return NextResponse.json({ success: false, error: 'Farmer profile not found. Please set up your profile first.' }, { status: 404 })
-    }
     return NextResponse.json({ success: false, error: 'Something went wrong' }, { status: 500 })
   }
 }
