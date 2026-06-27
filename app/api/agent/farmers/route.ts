@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
     const session = getSession()
     try {
       // Build status condition
+      const isFlagged = statusFilter === 'flagged'
       const statusConditions: Record<string, string> = {
         pending:  `WHERE (farmer.verified <> true OR farmer.verified IS NULL)`,
         verified: `WHERE farmer.verified = true`,
@@ -56,12 +57,14 @@ export async function GET(req: NextRequest) {
         OPTIONAL MATCH (farmer)-[:APPLIED_FOR]->(l:Loan)
         OPTIONAL MATCH (farmer)-[:MEMBER_OF]->(cg:ChamaGroup)
         OPTIONAL MATCH (agent:User {id: $agentId})-[:SUPERVISES]-(farmer)
+        OPTIONAL MATCH (farmer)-[:HAS_VERIFICATION]->(vr:VerificationReport)
         RETURN farmer,
                collect(DISTINCT c.name) AS crops,
                co.name AS countyName,
                collect(DISTINCT l {.id, .amount, .status}) AS loans,
                cg.name AS chamaName,
-               agent.id IS NOT NULL AS assigned
+               agent.id IS NOT NULL AS assigned,
+               collect(DISTINCT vr {.id, .status, .discrepancies, .notes, .visitedAt}) AS reports
         ORDER BY farmer.name
       `
 
@@ -71,6 +74,8 @@ export async function GET(req: NextRequest) {
         const f = r.get('farmer').properties
         const crops = r.get('crops') || []
         const loans = r.get('loans') || []
+        const reports = (r.get('reports') || []) as any[]
+        const flaggedReport = reports.find((vr: any) => vr?.status === 'flagged')
         const activeLoan = loans.find((l: any) => l?.status === 'pending_verification' || l?.status === 'pending')
         return {
           id: f.id,
@@ -80,7 +85,12 @@ export async function GET(req: NextRequest) {
           crops,
           acreage: f.acreage || 0,
           loanAmount: activeLoan?.amount || f.loanAmount || 0,
-          status: f.verified === true ? 'verified' : 'pending',
+          status: flaggedReport ? 'flagged' : f.verified === true ? 'verified' : 'pending',
+          flaggedDetail: flaggedReport ? {
+            discrepancies: flaggedReport.discrepancies || [],
+            notes: flaggedReport.notes || '',
+            visitedAt: flaggedReport.visitedAt ? flaggedReport.visitedAt.toString() : '',
+          } : null,
           creditScore: f.creditScore || 0,
           language: f.language || 'en',
           hasChama: !!r.get('chamaName'),
@@ -93,11 +103,12 @@ export async function GET(req: NextRequest) {
       const total = farmers.length
       const pending = farmers.filter(f => f.status === 'pending').length
       const verified = farmers.filter(f => f.status === 'verified').length
+      const flagged = farmers.filter(f => f.status === 'flagged').length
 
       return NextResponse.json({
         success: true,
         farmers,
-        stats: { total, pending, verified },
+        stats: { total, pending, verified, flagged },
       })
     } finally {
       await session.close()

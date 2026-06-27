@@ -178,3 +178,29 @@ export interface PaymentRecord {
   method: 'MPESA' | 'BANK'
   mpesaRef?: string
 }
+
+export interface VisitSchedule {
+  id: string
+  agentId: string
+  farmerId: string
+  farmerName: string
+  county: string
+  crop: string
+  date: string
+  time: string
+  notes: string
+  status: 'pending' | 'confirmed' | 'completed'
+  createdAt: string
+  farmerPhone?: string
+  farmerEmail?: string
+}
+
+export interface Notification {
+  id: string
+  userId: string
+  type: 'schedule_visit' | 'verification' | 'loan_update'
+  title: string
+  body: string
+  read: boolean
+  createdAt: string
+}

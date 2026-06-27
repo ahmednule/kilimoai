@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { LayoutDashboard, Users, ClipboardCheck, ShieldAlert, CalendarDays, ArrowUpRight, Search, Phone, MapPin, Sprout, UserCheck } from 'lucide-react'
+import { LayoutDashboard, Users, ClipboardCheck, ShieldAlert, CalendarDays, ArrowUpRight, Search, Phone, MapPin, Sprout, UserCheck, AlertTriangle } from 'lucide-react'
 import { getToken } from '@/lib/auth'
 
 interface ApiFarmer {
@@ -75,6 +75,7 @@ export default function AgentDashboardPage() {
     { label: 'Total Farmers', value: stats.total, icon: Users, color: 'text-green-primary', bg: 'bg-green-primary/10' },
     { label: 'Pending', value: stats.pending, icon: ClipboardCheck, color: 'text-risk-medium', bg: 'bg-risk-medium/10' },
     { label: 'Verified', value: stats.verified, icon: ShieldAlert, color: 'text-risk-low', bg: 'bg-risk-low/10' },
+    { label: 'Flagged', value: stats.flagged ?? '—', icon: AlertTriangle, color: 'text-risk-high', bg: 'bg-risk-high/10' },
     { label: 'Assigned', value: assignedCount, icon: UserCheck, color: 'text-sky-blue', bg: 'bg-sky-blue/10' },
   ]
 
@@ -89,7 +90,7 @@ export default function AgentDashboardPage() {
         <p className="text-sm text-text-muted mt-1">View all farmers, verify information, and manage field visits</p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
         {statCards.map((s, i) => (
           <div key={i} className="bg-dark-mid border border-border-subtle rounded-xl p-4">
             <div className="flex items-center justify-between mb-2">
