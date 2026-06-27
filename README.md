@@ -390,6 +390,43 @@ kilimo-ai/
 
 ---
 
+## Featherless AI Integration
+
+Kilimo AI uses **Featherless AI** via its REST API (`api.featherless.ai/v1`) to power two core features: **Farm Risk Assessment** and **Pest Detection**.
+
+### 1. Farm Risk Assessment Chat (`/api/chat`)
+
+| Aspect | Details |
+|---|---|
+| **Model** | `deepseek-ai/DeepSeek-V4-Pro` (open-weight, served through Featherless) |
+| **What it does** | Acts as a financial advisor for smallholder farmers. In "assessment" mode, it evaluates whether a farmer should take an agricultural loan and recommends a safe amount. In "general" mode, it answers any farming-related questions (crop management, weather, market prices). |
+| **Input sent to Featherless** | A structured `POST /v1/chat/completions` request containing: a **system prompt** (bilingual English/Swahili instructions with the assessment rubric), a **farmer profile block** (name, county, crops, acreage, rental costs, phone), the **conversation history**, and a Neo4j-derived **context block** (pest/disease data for the farmer's crops + recent weather data for their county). |
+| **Output from Featherless** | A standard OpenAI-compatible chat completion response (`{ choices: [{ message: { content: "..." } }] }`) containing a natural-language assessment in English or Swahili, or a farming advice answer. |
+| **How it appears in the product** | The response is displayed in the chat interface at `/chat` (assessment mode) or `/chatbot` (general mode). Assessment responses include a risk level badge (`LOW`/`MEDIUM`/`HIGH`/`UNKNOWN`) rendered from the model's output, and the conversation is persisted in localStorage so farmers can revisit their assessment history on the dashboard. |
+
+### 2. Pest Detection (`/api/pest-check`)
+
+| Aspect | Details |
+|---|---|
+| **Model** | `meta-llama/Llama-3.2-11B-Vision-Instruct` (open-weight vision model, served through Featherless) |
+| **What it does** | Identifies crop pests and diseases from farmer-submitted photos. Returns the pest name, confidence score, severity level, and localized treatment recommendations using solutions available in East Africa. |
+| **Input sent to Featherless** | A structured `POST /v1/chat/completions` request containing: a **system prompt** instructing the model to act as a specialized agricultural pest expert and return structured JSON, and a **multimodal user message** with the text "Identify the pest or disease affecting this crop." plus the uploaded image as a base64 data URL (`image_url`). |
+| **Output from Featherless** | A JSON object parsed from the model's response: `{ pest, confidence, recommendation, severity, isPest, commonName, scientificName, affectedCrops }`. |
+| **How it appears in the product** | The parsed result renders a pest detection card on the `/pest-check` page: pest name with confidence percentage, severity badge (color-coded LOW/MEDIUM/HIGH), treatment recommendations, scientific name where available, and an icon indicating whether it is an insect pest or plant disease. The scan is also saved to Neo4j as a `PestScan` node linked to the matching `Pest`/`Disease` and `Crop` nodes for future reference. |
+
+### Environment Variables
+
+Both integrations are configured via environment variables:
+
+| Variable | Default | Used By |
+|---|---|---|
+| `FEATHERLESS_API_KEY` | — | Chat + Pest Detection |
+| `FEATHERLESS_BASE_URL` | `https://api.featherless.ai/v1` | Chat + Pest Detection |
+| `FEATHERLESS_MODEL` | `deepseek-ai/DeepSeek-V4-Pro` | Chat |
+| `FEATHERLESS_VISION_MODEL` | `meta-llama/Llama-3.2-11B-Vision-Instruct` | Pest Detection |
+
+---
+
 ## License
 
 This project was developed for hackathon purposes. License rights belong to the hackathon organizing body until updated otherwise!
