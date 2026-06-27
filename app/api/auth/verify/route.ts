@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     }
 
     await session.run(
-      'MATCH (u:User {email: $email}) SET u.verified = true, u.verificationToken = null',
+      'MATCH (u:User {email: $email}) SET u.emailVerified = true, u.verificationToken = null',
       { email: lowerEmail }
     )
 

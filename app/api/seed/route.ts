@@ -309,6 +309,7 @@ export async function GET() {
              u.creditScore = $creditScore,
              u.language    = $language,
              u.verified    = $verified,
+             u.emailVerified = true,
              u.createdAt   = datetime()
          WITH u
          MATCH (r:Role {name: 'farmer'})

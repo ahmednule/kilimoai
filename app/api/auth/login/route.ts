@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Incorrect password' }, { status: 401 })
     }
 
-    if (user.verified !== true) {
+    if (user.emailVerified !== true) {
       await session.close()
       return NextResponse.json({
         success: false,
