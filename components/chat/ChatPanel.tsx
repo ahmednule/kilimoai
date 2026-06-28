@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, KeyboardEvent } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Send, Camera, X, Trash2 } from 'lucide-react'
+import { Send, Camera, X, Trash2, Mic, MicOff, Volume2 } from 'lucide-react'
 import { ChatMessage as ChatMessageType, FarmerProfile, Language, ChatMode, RiskLevel, ScenarioResult, PestScanResult } from '@/lib/types'
 import { QUICK_REPLIES, UI_TEXT, CROPS } from '@/lib/constants'
 import { ChatMessage } from './ChatMessage'
@@ -10,6 +10,8 @@ import { TypingIndicator } from './TypingIndicator'
 import { LanguageToggle } from '@/components/shared/LanguageToggle'
 import { cn } from '@/lib/utils'
 import { getChatMessages, saveChatMessages, clearChatMessages } from '@/lib/chat'
+import { useVoiceInput } from '@/components/chatbot/VoiceInput'
+import { useVoiceOutput } from '@/components/chatbot/VoiceOutput'
 
 interface ChatPanelProps {
   profile: FarmerProfile
@@ -67,6 +69,13 @@ export function ChatPanel({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const voiceInput = useVoiceInput({
+    language,
+    onResult: (transcript) => sendMessage(transcript),
+  })
+  const voiceOutput = useVoiceOutput(language)
+
   const t = UI_TEXT[language]
   const quickReplies = QUICK_REPLIES[language]
 
@@ -276,7 +285,18 @@ export function ChatPanel({
 
       <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-3 sm:py-4 space-y-3 scrollbar-thin scrollbar-thumb-border-subtle scrollbar-track-transparent">
         {messages.map(msg => (
-          <ChatMessage key={msg.id} message={msg} language={language} />
+          <div key={msg.id} className="relative group">
+            <ChatMessage message={msg} language={language} />
+            {msg.role === 'assistant' && !msg.pestScan && (
+              <button
+                onClick={() => voiceOutput.speak(msg.content)}
+                className="absolute -right-2 top-1 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg bg-dark-mid border border-border-subtle text-text-muted hover:text-green-400"
+                aria-label="Read aloud"
+              >
+                <Volume2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         ))}
 
         <AnimatePresence>
@@ -387,6 +407,24 @@ export function ChatPanel({
           >
             <Camera className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
+
+          {voiceInput.supported && (
+            <button
+              onClick={voiceInput.listening ? voiceInput.stopListening : voiceInput.startListening}
+              disabled={isLoading || isScanning}
+              aria-label={voiceInput.listening ? 'Stop listening' : 'Start voice input'}
+              className={cn(
+                'w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-150',
+                voiceInput.listening
+                  ? 'bg-red-500 text-white animate-pulse'
+                  : 'bg-dark-base border border-border-subtle text-text-muted hover:text-green-400 hover:border-green-primary/40',
+                (isLoading || isScanning) && 'opacity-50 cursor-not-allowed'
+              )}
+            >
+              {voiceInput.listening ? <MicOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Mic className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+            </button>
+          )}
+
           <textarea
             ref={textareaRef}
             value={draft}

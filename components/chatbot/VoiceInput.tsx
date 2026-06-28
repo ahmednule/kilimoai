@@ -9,13 +9,13 @@ interface UseVoiceInputOptions {
   onListeningChange?: (listening: boolean) => void
 }
 
-const LANG_MAP: Record<Language, string> = { en: 'en-KE', sw: 'sw-KE' }
+const LANG_MAP: Record<Language, string> = { en: 'en-KE', sw: 'sw-KE', ki: 'en-KE', lu: 'en-KE' }
 
 export function useVoiceInput({ language, onResult, onListeningChange }: UseVoiceInputOptions) {
   const [listening, setListening] = useState(false)
   const [supported, setSupported] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const recognitionRef = useRef<InstanceType<typeof SpeechRecognition> | null>(null)
+  const recognitionRef = useRef<any>(null)
   const finalRef = useRef('')
   const onResultRef = useRef(onResult)
 
@@ -24,7 +24,7 @@ export function useVoiceInput({ language, onResult, onListeningChange }: UseVoic
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     if (!SpeechRecognition) {
       setSupported(false)
       setError('Speech recognition not supported in this browser')
@@ -36,7 +36,7 @@ export function useVoiceInput({ language, onResult, onListeningChange }: UseVoic
     recognition.interimResults = true
     recognition.lang = LANG_MAP[language]
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
+    recognition.onresult = (event: any) => {
       let interim = ''
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i]
@@ -58,15 +58,14 @@ export function useVoiceInput({ language, onResult, onListeningChange }: UseVoic
       finalRef.current = ''
     }
 
-    recognition.onerror = (event: Event) => {
-      const err = event as SpeechRecognitionErrorEvent
+    recognition.onerror = (event: any) => {
       setListening(false)
       onListeningChange?.(false)
       finalRef.current = ''
-      if (err.error === 'not-allowed') {
+      if (event.error === 'not-allowed') {
         setError('Microphone access denied')
-      } else if (err.error !== 'no-speech') {
-        setError(err.error)
+      } else if (event.error !== 'no-speech') {
+        setError(event.error)
       }
     }
 

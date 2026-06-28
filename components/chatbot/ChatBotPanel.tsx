@@ -26,7 +26,7 @@ export function ChatBotPanel({ profile, language, onLanguageChange }: ChatBotPan
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isScanning, setIsScanning] = useState(false)
-  const recognitionRef = useRef<InstanceType<typeof SpeechRecognition> | null>(null)
+  const recognitionRef = useRef<any>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -45,19 +45,23 @@ export function ChatBotPanel({ profile, language, onLanguageChange }: ChatBotPan
       content: greeting,
       timestamp: new Date(),
     }])
-
-    if (typeof window !== 'undefined') {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-      if (!SpeechRecognition) {
-        setSttSupported(false)
-        return
-      }
-      recognitionRef.current = new SpeechRecognition()
-      recognitionRef.current.continuous = false
-      recognitionRef.current.interimResults = true
-      recognitionRef.current.lang = STT_LANG[language]
-    }
   }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SpeechRecognition) {
+      setSttSupported(false)
+      return
+    }
+    if (!recognitionRef.current) {
+      const rec = new SpeechRecognition()
+      rec.continuous = false
+      rec.interimResults = true
+      recognitionRef.current = rec
+    }
+    recognitionRef.current.lang = STT_LANG[language]
+  }, [language])
 
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim() || isLoading) return
@@ -204,7 +208,7 @@ export function ChatBotPanel({ profile, language, onLanguageChange }: ChatBotPan
     setListening(true)
 
     let finalTranscript = ''
-    rec.onresult = (event: SpeechRecognitionEvent) => {
+    rec.onresult = (event: any) => {
       let interim = ''
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i]
