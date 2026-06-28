@@ -44,7 +44,7 @@ function saveSession(session: UserSession, token: string): void {
   localStorage.setItem(TOKEN_KEY, token)
 }
 
-export async function login(email: string, password: string): Promise<{ success: boolean; error?: string }> {
+export async function login(email: string, password: string): Promise<{ success: boolean; error?: string; needsVerification?: boolean }> {
   try {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
@@ -55,7 +55,7 @@ export async function login(email: string, password: string): Promise<{ success:
     const data = await res.json()
 
     if (!data.success) {
-      return { success: false, error: data.error || 'Login failed' }
+      return { success: false, error: data.error || 'Login failed', needsVerification: data.needsVerification }
     }
 
     const session: UserSession = {

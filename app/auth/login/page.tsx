@@ -63,6 +63,9 @@ export default function LoginPage() {
 
   const t = UI_TEXT[lang]
 
+  const [needsVerification, setNeedsVerification] = useState(false)
+  const [resending, setResending] = useState(false)
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -79,8 +82,32 @@ export default function LoginPage() {
       const session = JSON.parse(localStorage.getItem('kilimo-session') || '{}')
       router.push(getDashboardPath(session.role))
     } else {
+      setNeedsVerification(!!result.needsVerification)
       toast.error(result.error || t.loginFailed)
     }
+  }
+
+  const handleResend = async () => {
+    if (!email.trim() || resending) return
+    setResending(true)
+    try {
+      const res = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success(data.emailSent
+          ? (lang === 'sw' ? 'Barua pepe ya uthibitisho imetumwa!' : 'Verification email sent!')
+          : (lang === 'sw' ? 'Haiwezi kutuma barua pepe. Wasiliana na usaidizi.' : 'Could not send email. Contact support.'))
+      } else {
+        toast.error(data.error || 'Failed')
+      }
+    } catch {
+      toast.error('Network error')
+    }
+    setResending(false)
   }
 
   const handleGoogleClick = () => {
@@ -142,7 +169,17 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex items-center justify-between">
+          {needsVerification ? (
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={resending}
+              className="text-xs text-yellow-400 hover:text-yellow-300 transition-colors"
+            >
+              {resending ? (lang === 'sw' ? 'Inatuma...' : 'Sending...') : t.resendVerify}
+            </button>
+          ) : <div />}
           <Link
             href="/auth/forgot-password"
             className="text-xs text-text-muted hover:text-green-primary transition-colors"
