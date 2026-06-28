@@ -9,7 +9,7 @@ export const LANGUAGES: { code: Language; label: string; native: string }[] = [
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'UNKNOWN'
 export type Severity = 'LOW' | 'MEDIUM' | 'HIGH' | 'UNKNOWN'
 export type Rainfall = 'good' | 'average' | 'poor'
-export type ChatMode = 'assessment' | 'general' | 'pest'
+export type ChatMode = 'assessment' | 'general' | 'pest' | 'planting'
 
 export interface CropEntry {
   crop: string

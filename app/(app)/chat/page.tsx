@@ -255,7 +255,7 @@ export default function ChatPage() {
         <div className="flex items-center justify-between gap-2 px-4 sm:px-6 py-3 border-b border-border-subtle shrink-0">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <h2 className="font-serif text-sm sm:text-lg font-semibold text-text-primary truncate">
-              {mode === 'general' ? (language === 'sw' ? 'Maswali ya Kilimo' : 'Farming Advice') : 'Loan Assessment'}
+              {mode === 'general' ? (language === 'sw' ? 'Maswali ya Kilimo' : 'Farming Advice') : mode === 'planting' ? (language === 'sw' ? 'Mwongozo wa Upandaji' : 'Planting Guide') : 'Loan Assessment'}
             </h2>
             <div className="flex items-center gap-1 rounded-full bg-dark-mid p-0.5 shrink-0">
               <button
@@ -267,6 +267,16 @@ export default function ChatPage() {
                 }`}
               >
                 {language === 'sw' ? 'Mkopo' : 'Loan'}
+              </button>
+              <button
+                onClick={() => handleModeChange('planting')}
+                className={`px-2 sm:px-2.5 py-1 text-[10px] sm:text-[11px] font-medium rounded-full transition-all duration-200 ${
+                  mode === 'planting'
+                    ? 'bg-green-primary text-text-primary'
+                    : 'text-text-muted hover:text-text-primary'
+                }`}
+              >
+                {language === 'sw' ? 'Upandaji' : 'Planting'}
               </button>
               <button
                 onClick={() => handleModeChange('general')}

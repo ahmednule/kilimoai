@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback, KeyboardEvent } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Send, Camera, X, Trash2, Mic, MicOff, Volume2 } from 'lucide-react'
 import { ChatMessage as ChatMessageType, FarmerProfile, Language, ChatMode, RiskLevel, ScenarioResult, PestScanResult } from '@/lib/types'
-import { QUICK_REPLIES, UI_TEXT, CROPS } from '@/lib/constants'
+import { QUICK_REPLIES_BY_MODE, UI_TEXT, CROPS } from '@/lib/constants'
 import { ChatMessage } from './ChatMessage'
 import { TypingIndicator } from './TypingIndicator'
 import { LanguageToggle } from '@/components/shared/LanguageToggle'
@@ -79,7 +79,7 @@ export function ChatPanel({
   const voiceOutput = useVoiceOutput(language)
 
   const t = UI_TEXT[language]
-  const quickReplies = QUICK_REPLIES[language]
+  const quickReplies = (QUICK_REPLIES_BY_MODE[mode] ?? QUICK_REPLIES_BY_MODE.assessment)[language]
 
   const totalAcres = profile.crops.reduce((s, c) => s + c.acres, 0)
   const cropSummary = buildCropSummary(profile.crops, language)
@@ -105,8 +105,11 @@ export function ChatPanel({
   useEffect(() => {
     if (messages.length > 0) return
 
-    const isGeneral = mode === 'general'
-    const greeting = isGeneral
+    const greeting = mode === 'planting'
+      ? (language === 'sw'
+        ? `Habari ${profile.name}! Niko hapa kukupa mwongozo kamili wa upandaji wa ${cropSummary}. Unaweza kuniuliza kuhusu maandalizi ya shamba, mbegu, mbolea, nafasi ya kupanda, au ratiba nzima ya kilimo kwa msimu huu. Ungependa kuanza na zao gani?`
+        : `Hello ${profile.name}! I'm here with a complete planting guide for your ${cropSummary}. Ask me about land preparation, seed varieties, fertilizer, spacing, or a full season calendar. Which crop would you like to start with?`)
+      : mode === 'general'
       ? (language === 'sw'
         ? `Habari ${profile.name}! Niko hapa kukusaidia na maswali yoyote ya kilimo. Unauliza nini kuhusu ${cropSummary}?`
         : `Hello ${profile.name}! I'm here to help with any farming questions. What would you like to know about your ${cropSummary}?`)

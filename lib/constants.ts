@@ -32,7 +32,7 @@ export const CROPS = [
   { value: "other", label: { en: "Other", sw: "Nyingine" } },
 ]
 
-export const QUICK_REPLIES = {
+const QUICK_REPLIES_ASSESSMENT: Record<string, string[]> = {
   en: [
     "What if I add an acre?",
     "What's the safest loan amount?",
@@ -49,6 +49,48 @@ export const QUICK_REPLIES = {
     "Ninapaswa kuomba mkopo lini?",
     "Nafasi yangu ya kulipa ni ipi?",
   ]
+}
+
+const QUICK_REPLIES_GENERAL: Record<string, string[]> = {
+  en: [
+    "What's best to plant this season?",
+    "How do I control pests?",
+    "What fertilizer should I use?",
+    "When should I harvest?",
+  ],
+  sw: [
+    "Ni nini bora kupanda msimu huu?",
+    "Je, nidhibiti wadudu vipi?",
+    "Nitumie mbolea gani?",
+    "Nivune lini?",
+  ]
+}
+
+const QUICK_REPLIES_PLANTING: Record<string, string[]> = {
+  en: [
+    "When should I plant maize?",
+    "What fertilizer do I need?",
+    "How deep should I plant?",
+    "What spacing for beans?",
+    "When is the planting season?",
+    "How much seed per acre?",
+  ],
+  sw: [
+    "Nipande mahindi lini?",
+    "Nihitaji mbolea gani?",
+    "Nipanda kwa kina gani?",
+    "Nafasi gani kwa maharagwe?",
+    "Msimu wa upandaji ni lini?",
+    "Mbegu ngapi kwa ekari?",
+  ]
+}
+
+export const QUICK_REPLIES: Record<string, string[]> = QUICK_REPLIES_ASSESSMENT
+
+export const QUICK_REPLIES_BY_MODE: Record<string, Record<string, string[]>> = {
+  assessment: QUICK_REPLIES_ASSESSMENT,
+  general: QUICK_REPLIES_GENERAL,
+  planting: QUICK_REPLIES_PLANTING,
 }
 
 export const UI_TEXT = {

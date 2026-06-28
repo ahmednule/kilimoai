@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { SYSTEM_PROMPT_EN, SYSTEM_PROMPT_SW, SYSTEM_PROMPT_GENERAL_EN, SYSTEM_PROMPT_GENERAL_SW } from '@/lib/prompts'
+import { SYSTEM_PROMPT_EN, SYSTEM_PROMPT_SW, SYSTEM_PROMPT_GENERAL_EN, SYSTEM_PROMPT_GENERAL_SW, SYSTEM_PROMPT_PLANTING_EN, SYSTEM_PROMPT_PLANTING_SW } from '@/lib/prompts'
 import { FarmerProfile, Language, ChatMode } from '@/lib/types'
 import { getSession } from '@/lib/neo4j'
 import { PEST_DISEASES } from '@/lib/pests'
@@ -96,8 +96,9 @@ export async function POST(req: NextRequest) {
     const model = process.env.FEATHERLESS_MODEL || 'deepseek-ai/DeepSeek-V4-Pro'
     const url = `${baseUrl}/chat/completions`
 
-    const isGeneral = mode === 'general'
-    let systemPrompt = isGeneral
+    let systemPrompt = mode === 'planting'
+      ? (language === 'sw' ? SYSTEM_PROMPT_PLANTING_SW : SYSTEM_PROMPT_PLANTING_EN)
+      : mode === 'general'
       ? (language === 'sw' ? SYSTEM_PROMPT_GENERAL_SW : SYSTEM_PROMPT_GENERAL_EN)
       : (language === 'sw' ? SYSTEM_PROMPT_SW : SYSTEM_PROMPT_EN)
 
