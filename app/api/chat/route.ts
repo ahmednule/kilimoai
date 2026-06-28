@@ -112,6 +112,7 @@ export async function POST(req: NextRequest) {
     }
 
     const response = await fetch(url, {
+      signal: AbortSignal.timeout(25_000),
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

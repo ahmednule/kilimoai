@@ -27,6 +27,7 @@ export function ChatBotPanel({ profile, language, onLanguageChange }: ChatBotPan
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isScanning, setIsScanning] = useState(false)
   const recognitionRef = useRef<any>(null)
+  const abortRef = useRef<AbortController | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -66,14 +67,22 @@ export function ChatBotPanel({ profile, language, onLanguageChange }: ChatBotPan
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim() || isLoading) return
 
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    const timeoutId = setTimeout(() => controller.abort(), 30_000)
+
     const userMsg: ChatMessageType = {
       id: Date.now().toString(),
       role: 'user',
       content: content.trim(),
       timestamp: new Date(),
     }
-    const historyForApi = [...messages, userMsg]
-    setMessages(historyForApi)
+    const allMessages = [...messages, userMsg]
+    const trimmed = allMessages.length > 20
+      ? [allMessages[0], ...allMessages.slice(-19)]
+      : allMessages
+    setMessages(allMessages)
     setDraft('')
     setIsLoading(true)
 
@@ -86,15 +95,17 @@ export function ChatBotPanel({ profile, language, onLanguageChange }: ChatBotPan
       }
 
       const res = await fetch('/api/chat', {
+        signal: controller.signal,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: historyForApi.map(m => ({ role: m.role, content: m.content })),
+          messages: trimmed.map(m => ({ role: m.role, content: m.content })),
           farmerProfile,
           language,
           mode: 'general',
         }),
       })
+      clearTimeout(timeoutId)
 
       if (!res.ok) throw new Error('API error')
 
@@ -106,7 +117,9 @@ export function ChatBotPanel({ profile, language, onLanguageChange }: ChatBotPan
         timestamp: new Date(),
       }
       setMessages(prev => [...prev, assistantMsg])
-    } catch {
+    } catch (err: any) {
+      clearTimeout(timeoutId)
+      if (err?.name === 'AbortError') return
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -116,7 +129,9 @@ export function ChatBotPanel({ profile, language, onLanguageChange }: ChatBotPan
         timestamp: new Date(),
       }])
     } finally {
-      setIsLoading(false)
+      if (controller === abortRef.current) {
+        setIsLoading(false)
+      }
     }
   }, [messages, isLoading, profile, language])
 

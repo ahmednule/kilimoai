@@ -69,6 +69,8 @@ export function ChatPanel({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const abortRef = useRef<AbortController | null>(null)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const voiceInput = useVoiceInput({
     language,
@@ -89,13 +91,14 @@ export function ChatPanel({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isLoading])
 
-  // Auto-save messages to localStorage whenever they change (skip initial load)
+  // Auto-save messages to localStorage with debounce
   useEffect(() => {
     if (!initialized) {
       setInitialized(true)
       return
     }
-    saveChatMessages(messages)
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => saveChatMessages(messages), 500)
   }, [messages, initialized])
 
   // Add greeting only if no saved messages exist
@@ -122,6 +125,12 @@ export function ChatPanel({
   const sendMessage = async (content: string) => {
     if (!content.trim() || isLoading) return
 
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    const TIMEOUT_MS = 30_000
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS)
+
     const userMsg: ChatMessageType = {
       id: Date.now().toString(),
       role: 'user',
@@ -133,16 +142,24 @@ export function ChatPanel({
     setIsLoading(true)
 
     try {
+      const allMessages = [...messages, userMsg]
+      // Keep greeting (index 0) + last 19 messages to bound token usage
+      const trimmed = allMessages.length > 20
+        ? [allMessages[0], ...allMessages.slice(-19)]
+        : allMessages
+
       const res = await fetch('/api/chat', {
+        signal: controller.signal,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })),
+          messages: trimmed.map(m => ({ role: m.role, content: m.content })),
           farmerProfile: profile,
           language,
           mode,
         }),
       })
+      clearTimeout(timeoutId)
 
       if (!res.ok) throw new Error('API error')
 
@@ -166,7 +183,9 @@ export function ChatPanel({
         onStepComplete(4)
         onScenarioResult?.(scenarios)
       }
-    } catch {
+    } catch (err: any) {
+      clearTimeout(timeoutId)
+      if (err?.name === 'AbortError') return
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -176,7 +195,9 @@ export function ChatPanel({
         timestamp: new Date(),
       }])
     } finally {
-      setIsLoading(false)
+      if (controller === abortRef.current) {
+        setIsLoading(false)
+      }
     }
   }
 
