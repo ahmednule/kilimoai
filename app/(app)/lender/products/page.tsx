@@ -1,15 +1,16 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import {
   Landmark, Plus, Users, Search, Filter, ChevronDown, MapPin, Sprout,
-  DollarSign, Clock, CheckCircle2, AlertTriangle,   BadgeCheck, X, Shield,
+  DollarSign, Clock, CheckCircle2, AlertTriangle, BadgeCheck, X, Shield,
+  Pencil, Trash2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getSession, getToken } from '@/lib/auth'
 import { Language } from '@/lib/types'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { toast } from 'sonner'
 
 type View = 'LOADING' | 'UNAUTHORIZED' | 'PRODUCTS'
 
@@ -42,22 +43,26 @@ const CATEGORIES = ['input', 'equipment', 'seasonal', 'working']
 
 const formatKES = (n: number) => `Ksh ${n.toLocaleString('en-KE')}`
 
+const defaultForm = { name: '', provider: '', minAmount: 0, maxAmount: 0, interestRate: 0, tenureMonths: 0, eligibility: '', description: '', category: 'input' }
+
 export default function LenderProducts() {
-  const router = useRouter()
   const [mounted, setMounted] = useState(false)
   const [view, setView] = useState<View>('LOADING')
   const [language] = useState<Language>('en')
   const [products, setProducts] = useState<LoanProduct[]>([])
   const [loading, setLoading] = useState(true)
 
-  // New product form
+  // Form state
   const [formOpen, setFormOpen] = useState(false)
-  const [form, setForm] = useState({ name: '', provider: '', minAmount: 0, maxAmount: 0, interestRate: 0, tenureMonths: 0, eligibility: '', description: '', category: 'input' })
+  const [editing, setEditing] = useState<LoanProduct | null>(null)
+  const [form, setForm] = useState(defaultForm)
 
   // Selected product applicants
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null)
   const [applicants, setApplicants] = useState<LoanApplication[]>([])
   const [applicantsLoading, setApplicantsLoading] = useState(false)
+
+  const lenderId = getSession().id || ''
 
   useEffect(() => {
     const session = getSession()
@@ -72,8 +77,11 @@ export default function LenderProducts() {
   }, [])
 
   const fetchProducts = async () => {
+    const token = getToken()
     try {
-      const res = await fetch('/api/loan-products')
+      const res = await fetch(`/api/loan-products?createdBy=${encodeURIComponent(lenderId)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
       const data = await res.json()
       if (data.success) setProducts(data.products || [])
     } catch (e) {
@@ -100,22 +108,72 @@ export default function LenderProducts() {
     }
   }
 
-  const handleCreate = async () => {
+  const openCreate = () => {
+    setEditing(null)
+    setForm(defaultForm)
+    setFormOpen(true)
+  }
+
+  const openEdit = (product: LoanProduct) => {
+    setEditing(product)
+    setForm({
+      name: product.name,
+      provider: product.provider,
+      minAmount: product.minAmount,
+      maxAmount: product.maxAmount,
+      interestRate: product.interestRate,
+      tenureMonths: product.tenureMonths,
+      eligibility: product.eligibility,
+      description: product.description,
+      category: product.category,
+    })
+    setFormOpen(true)
+  }
+
+  const handleSave = async () => {
     if (!form.name || !form.provider) return
+    const token = getToken()
     try {
-      const res = await fetch('/api/loan-products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+      const url = '/api/loan-products'
+      const method = editing ? 'PATCH' : 'POST'
+      const body = editing ? { id: editing.id, ...form } : form
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
       })
       const data = await res.json()
       if (data.success) {
+        toast.success(editing ? 'Product updated' : 'Product created')
         setFormOpen(false)
-        setForm({ name: '', provider: '', minAmount: 0, maxAmount: 0, interestRate: 0, tenureMonths: 0, eligibility: '', description: '', category: 'input' })
+        setEditing(null)
         fetchProducts()
+      } else {
+        toast.error(data.error || 'Failed')
       }
     } catch (e) {
-      console.error('Failed to create product', e)
+      toast.error('Network error')
+    }
+  }
+
+  const handleDelete = async (product: LoanProduct) => {
+    if (!confirm(`Delete "${product.name}"?`)) return
+    const token = getToken()
+    try {
+      const res = await fetch(`/api/loan-products?id=${product.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success('Product deleted')
+        fetchProducts()
+      } else {
+        toast.error(data.error || 'Failed')
+      }
+    } catch {
+      toast.error('Network error')
     }
   }
 
@@ -141,21 +199,19 @@ export default function LenderProducts() {
           <div>
             <h1 className="text-lg sm:text-xl font-semibold text-text-primary flex items-center gap-2">
               <Landmark className="w-5 h-5 text-gold-harvest" />
-              Loan Products
+              My Loan Products
             </h1>
-            <p className="text-sm text-text-muted mt-1">Create and manage loan products for farmers</p>
+            <p className="text-sm text-text-muted mt-1">Create, edit, and manage your loan products</p>
           </div>
-          <button
-            onClick={() => setFormOpen(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-green-primary text-green-100 text-sm font-medium hover:bg-green-light transition-colors w-fit"
-          >
+          <button onClick={openCreate}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-green-primary text-green-100 text-sm font-medium hover:bg-green-light transition-colors w-fit">
             <Plus className="w-4 h-4" />
             New Product
           </button>
         </div>
       </div>
 
-      {/* Products grid */}
+      {/* Products list */}
       <div className="px-4 sm:px-6 py-4 space-y-3">
         {loading ? (
           <p className="text-text-muted text-sm text-center py-12">Loading products...</p>
@@ -173,15 +229,25 @@ export default function LenderProducts() {
                     <h3 className="text-sm font-semibold text-text-primary">{product.name}</h3>
                     <p className="text-[11px] text-text-muted mt-0.5">{product.provider}</p>
                   </div>
-                  <span className={cn(
-                    'inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium',
-                    product.category === 'input' ? 'bg-green-400/10 text-green-400' :
-                    product.category === 'equipment' ? 'bg-blue-400/10 text-blue-400' :
-                    product.category === 'seasonal' ? 'bg-gold-harvest/10 text-gold-harvest' :
-                    'bg-purple-400/10 text-purple-400'
-                  )}>
-                    {product.category}
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={cn(
+                      'inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium',
+                      product.category === 'input' ? 'bg-green-400/10 text-green-400' :
+                      product.category === 'equipment' ? 'bg-blue-400/10 text-blue-400' :
+                      product.category === 'seasonal' ? 'bg-gold-harvest/10 text-gold-harvest' :
+                      'bg-purple-400/10 text-purple-400'
+                    )}>
+                      {product.category}
+                    </span>
+                    <button onClick={() => openEdit(product)}
+                      className="p-1.5 text-text-muted hover:text-blue-400 rounded-lg hover:bg-dark-base transition-colors">
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => handleDelete(product)}
+                      className="p-1.5 text-text-muted hover:text-red-400 rounded-lg hover:bg-dark-base transition-colors">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
@@ -208,10 +274,8 @@ export default function LenderProducts() {
                 )}
 
                 <div className="mt-3 pt-3 border-t border-border-subtle">
-                  <button
-                    onClick={() => fetchApplicants(product.id)}
-                    className="inline-flex items-center gap-1.5 text-[12px] text-green-400 hover:text-green-300 transition-colors"
-                  >
+                  <button onClick={() => fetchApplicants(product.id)}
+                    className="inline-flex items-center gap-1.5 text-[12px] text-green-400 hover:text-green-300 transition-colors">
                     <Users className="w-3.5 h-3.5" />
                     View applicants
                   </button>
@@ -264,61 +328,70 @@ export default function LenderProducts() {
         )}
       </div>
 
-      {/* Create product sheet */}
-      <Sheet open={formOpen} onOpenChange={setFormOpen}>
+      {/* Create/Edit sheet */}
+      <Sheet open={formOpen} onOpenChange={(open) => { if (!open) { setFormOpen(false); setEditing(null) } }}>
         <SheetContent side="right" className="w-full sm:max-w-md bg-dark-mid border-border-subtle overflow-y-auto">
           <SheetHeader>
-            <SheetTitle className="text-text-primary">New Loan Product</SheetTitle>
+            <SheetTitle className="text-text-primary">{editing ? 'Edit Product' : 'New Loan Product'}</SheetTitle>
           </SheetHeader>
           <div className="mt-6 space-y-4">
             <div>
               <label className="block text-[12px] font-medium text-text-muted mb-1">Product Name</label>
-              <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} className="w-full h-10 rounded-lg border border-border-subtle bg-dark-base px-3 text-sm text-text-primary placeholder:text-text-muted/50 focus:outline-none focus:ring-1 focus:ring-green-primary/40" placeholder="e.g. Kilimo Input Loan" />
+              <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                className="w-full h-10 rounded-lg border border-border-subtle bg-dark-base px-3 text-sm text-text-primary placeholder:text-text-muted/50 focus:outline-none focus:ring-1 focus:ring-green-primary/40"
+                placeholder="e.g. Kilimo Input Loan" />
             </div>
             <div>
               <label className="block text-[12px] font-medium text-text-muted mb-1">Provider</label>
-              <input value={form.provider} onChange={e => setForm(p => ({ ...p, provider: e.target.value }))} className="w-full h-10 rounded-lg border border-border-subtle bg-dark-base px-3 text-sm text-text-primary placeholder:text-text-muted/50 focus:outline-none focus:ring-1 focus:ring-green-primary/40" placeholder="e.g. Equity Bank" />
+              <input value={form.provider} onChange={e => setForm(p => ({ ...p, provider: e.target.value }))}
+                className="w-full h-10 rounded-lg border border-border-subtle bg-dark-base px-3 text-sm text-text-primary placeholder:text-text-muted/50 focus:outline-none focus:ring-1 focus:ring-green-primary/40"
+                placeholder="e.g. Equity Bank" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[12px] font-medium text-text-muted mb-1">Min Amount (Ksh)</label>
-                <input type="number" value={form.minAmount || ''} onChange={e => setForm(p => ({ ...p, minAmount: Number(e.target.value) }))} className="w-full h-10 rounded-lg border border-border-subtle bg-dark-base px-3 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-green-primary/40" />
+                <input type="number" value={form.minAmount || ''} onChange={e => setForm(p => ({ ...p, minAmount: Number(e.target.value) }))}
+                  className="w-full h-10 rounded-lg border border-border-subtle bg-dark-base px-3 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-green-primary/40" />
               </div>
               <div>
                 <label className="block text-[12px] font-medium text-text-muted mb-1">Max Amount (Ksh)</label>
-                <input type="number" value={form.maxAmount || ''} onChange={e => setForm(p => ({ ...p, maxAmount: Number(e.target.value) }))} className="w-full h-10 rounded-lg border border-border-subtle bg-dark-base px-3 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-green-primary/40" />
+                <input type="number" value={form.maxAmount || ''} onChange={e => setForm(p => ({ ...p, maxAmount: Number(e.target.value) }))}
+                  className="w-full h-10 rounded-lg border border-border-subtle bg-dark-base px-3 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-green-primary/40" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[12px] font-medium text-text-muted mb-1">Interest Rate (%)</label>
-                <input type="number" step="0.1" value={form.interestRate || ''} onChange={e => setForm(p => ({ ...p, interestRate: Number(e.target.value) }))} className="w-full h-10 rounded-lg border border-border-subtle bg-dark-base px-3 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-green-primary/40" />
+                <input type="number" step="0.1" value={form.interestRate || ''} onChange={e => setForm(p => ({ ...p, interestRate: Number(e.target.value) }))}
+                  className="w-full h-10 rounded-lg border border-border-subtle bg-dark-base px-3 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-green-primary/40" />
               </div>
               <div>
                 <label className="block text-[12px] font-medium text-text-muted mb-1">Tenure (months)</label>
-                <input type="number" value={form.tenureMonths || ''} onChange={e => setForm(p => ({ ...p, tenureMonths: Number(e.target.value) }))} className="w-full h-10 rounded-lg border border-border-subtle bg-dark-base px-3 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-green-primary/40" />
+                <input type="number" value={form.tenureMonths || ''} onChange={e => setForm(p => ({ ...p, tenureMonths: Number(e.target.value) }))}
+                  className="w-full h-10 rounded-lg border border-border-subtle bg-dark-base px-3 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-green-primary/40" />
               </div>
             </div>
             <div>
               <label className="block text-[12px] font-medium text-text-muted mb-1">Category</label>
-              <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} className="w-full h-10 rounded-lg border border-border-subtle bg-dark-base px-3 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-green-primary/40">
+              <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))}
+                className="w-full h-10 rounded-lg border border-border-subtle bg-dark-base px-3 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-green-primary/40">
                 {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-[12px] font-medium text-text-muted mb-1">Eligibility</label>
-              <input value={form.eligibility} onChange={e => setForm(p => ({ ...p, eligibility: e.target.value }))} className="w-full h-10 rounded-lg border border-border-subtle bg-dark-base px-3 text-sm text-text-primary placeholder:text-text-muted/50 focus:outline-none focus:ring-1 focus:ring-green-primary/40" placeholder="e.g. Active farmer with 1+ acre" />
+              <input value={form.eligibility} onChange={e => setForm(p => ({ ...p, eligibility: e.target.value }))}
+                className="w-full h-10 rounded-lg border border-border-subtle bg-dark-base px-3 text-sm text-text-primary placeholder:text-text-muted/50 focus:outline-none focus:ring-1 focus:ring-green-primary/40"
+                placeholder="e.g. Active farmer with 1+ acre" />
             </div>
             <div>
               <label className="block text-[12px] font-medium text-text-muted mb-1">Description</label>
-              <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={3} className="w-full rounded-lg border border-border-subtle bg-dark-base px-3 py-2 text-sm text-text-primary placeholder:text-text-muted/50 focus:outline-none focus:ring-1 focus:ring-green-primary/40 resize-none" />
+              <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={3}
+                className="w-full rounded-lg border border-border-subtle bg-dark-base px-3 py-2 text-sm text-text-primary placeholder:text-text-muted/50 focus:outline-none focus:ring-1 focus:ring-green-primary/40 resize-none" />
             </div>
-            <button
-              onClick={handleCreate}
-              disabled={!form.name || !form.provider}
-              className="w-full h-11 rounded-lg bg-green-primary hover:bg-green-light text-green-100 font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Create Product
+            <button onClick={handleSave} disabled={!form.name || !form.provider}
+              className="w-full h-11 rounded-lg bg-green-primary hover:bg-green-light text-green-100 font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              {editing ? 'Save Changes' : 'Create Product'}
             </button>
           </div>
         </SheetContent>
