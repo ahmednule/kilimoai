@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import Link from 'next/link'
 import {
   Sprout, MessageSquare, History, Building2, Users, Bug, UserCog, LogOut,
   LayoutDashboard, ClipboardCheck, ShieldCheck, Bot, ShoppingCart, Store,
@@ -226,20 +227,34 @@ export function AppSidebar() {
       {NAV_ITEMS.map(({ label, icon: Icon, href }) => {
         const isChatBotItem = href === '/chatbot'
         const active = isChatBotItem ? chatBot.open : isRouteActive(href)
+        const commonClasses = cn(
+          'flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-150 mb-0.5',
+          active
+            ? cn(activeStyle.color, activeStyle.bg)
+            : 'text-text-muted hover:bg-dark-base hover:text-text-primary'
+        )
+        if (isChatBotItem) {
+          return (
+            <button
+              key={href}
+              onClick={() => handleNavClick(href, true)}
+              className={cn(commonClasses, 'w-full text-left')}
+            >
+              <Icon className="w-4 h-4 shrink-0" />
+              {label}
+            </button>
+          )
+        }
         return (
-          <button
+          <Link
             key={href}
-            onClick={() => handleNavClick(href, isChatBotItem)}
-            className={cn(
-              'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-150 mb-0.5 text-left',
-              active
-                ? cn(activeStyle.color, activeStyle.bg)
-                : 'text-text-muted hover:bg-dark-base hover:text-text-primary'
-            )}
+            href={href}
+            onClick={() => { setSheetOpen(false); setOptimisticHref(href) }}
+            className={cn(commonClasses, 'no-underline')}
           >
             <Icon className="w-4 h-4 shrink-0" />
             {label}
-          </button>
+          </Link>
         )
       })}
     </nav>

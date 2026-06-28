@@ -1,6 +1,7 @@
 'use client'
 
-import { useRouter, usePathname } from 'next/navigation'
+import { usePathname } from 'next/navigation'
+import Link from 'next/link'
 import { Sprout, RefreshCw, MessageSquare, History, Building2, Users, Bug } from 'lucide-react'
 import { FarmerProfile, Language, RiskLevel } from '@/lib/types'
 import { CROPS } from '@/lib/constants'
@@ -23,7 +24,6 @@ const NAV_ITEMS = [
 ]
 
 export function ChatSidebar({ profile, language, riskLevel, onReset }: ChatSidebarProps) {
-  const router   = useRouter()
   const pathname = usePathname()
 
   const cropLabel  = CROPS.find(c => c.value === profile.crop)?.label[language] ?? profile.crop
@@ -75,11 +75,11 @@ export function ChatSidebar({ profile, language, riskLevel, onReset }: ChatSideb
         {NAV_ITEMS.map(({ label, icon: Icon, href }) => {
           const active = pathname === href
           return (
-            <button
+            <Link
               key={href}
-              onClick={() => router.push(href)}
+              href={href}
               className={cn(
-                'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-150 mb-0.5 text-left',
+                'flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-150 mb-0.5 no-underline',
                 active
                   ? 'bg-green-primary/10 text-green-400 border border-green-primary/20'
                   : 'text-text-muted hover:bg-dark-base hover:text-text-primary'
@@ -87,7 +87,7 @@ export function ChatSidebar({ profile, language, riskLevel, onReset }: ChatSideb
             >
               <Icon className="w-4 h-4 shrink-0" />
               {label}
-            </button>
+            </Link>
           )
         })}
       </nav>
