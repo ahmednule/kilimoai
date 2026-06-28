@@ -8,7 +8,7 @@ import { QUICK_REPLIES_BY_MODE, UI_TEXT, CROPS } from '@/lib/constants'
 import { ChatMessage } from './ChatMessage'
 import { TypingIndicator } from './TypingIndicator'
 import { LanguageToggle } from '@/components/shared/LanguageToggle'
-import { cn } from '@/lib/utils'
+import { cn, compressImage } from '@/lib/utils'
 import { getChatMessages, saveChatMessages, clearChatMessages } from '@/lib/chat'
 import { useVoiceInput } from '@/components/chatbot/VoiceInput'
 import { useVoiceOutput } from '@/components/chatbot/VoiceOutput'
@@ -204,12 +204,15 @@ export function ChatPanel({
     }
   }
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     setSelectedFile(file)
     const reader = new FileReader()
-    reader.onload = () => setSelectedImage(reader.result as string)
+    reader.onload = async () => {
+      const compressed = await compressImage(reader.result as string)
+      setSelectedImage(compressed)
+    }
     reader.readAsDataURL(file)
   }
 
@@ -231,12 +234,17 @@ export function ChatPanel({
     setSelectedImage(null)
     setSelectedFile(null)
 
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 25_000)
+
     try {
       const res = await fetch('/api/pest-check', {
+        signal: controller.signal,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image: imageUrl, source: 'authenticated' }),
       })
+      clearTimeout(timeoutId)
 
       if (!res.ok) throw new Error('Scan failed')
 
@@ -275,7 +283,9 @@ export function ChatPanel({
         content: followUp,
         timestamp: new Date(),
       }])
-    } catch {
+    } catch (err: any) {
+      clearTimeout(timeoutId)
+      if (err?.name === 'AbortError') return
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',

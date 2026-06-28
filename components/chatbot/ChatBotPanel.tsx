@@ -6,7 +6,7 @@ import { Send, Volume2, Mic, MicOff, Globe, Camera, X } from 'lucide-react'
 import { ChatMessage as ChatMessageType, Language, FarmerProfile, PestScanResult } from '@/lib/types'
 import { ChatMessage } from '@/components/chat/ChatMessage'
 import { TypingIndicator } from '@/components/chat/TypingIndicator'
-import { cn } from '@/lib/utils'
+import { cn, compressImage } from '@/lib/utils'
 
 interface ChatBotPanelProps {
   profile: FarmerProfile | null
@@ -135,12 +135,15 @@ export function ChatBotPanel({ profile, language, onLanguageChange }: ChatBotPan
     }
   }, [messages, isLoading, profile, language])
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     setSelectedFile(file)
     const reader = new FileReader()
-    reader.onload = () => setSelectedImage(reader.result as string)
+    reader.onload = async () => {
+      const compressed = await compressImage(reader.result as string)
+      setSelectedImage(compressed)
+    }
     reader.readAsDataURL(file)
   }
 
@@ -159,8 +162,12 @@ export function ChatBotPanel({ profile, language, onLanguageChange }: ChatBotPan
     setSelectedImage(null)
     setSelectedFile(null)
 
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 25_000)
+
     try {
       const res = await fetch('/api/pest-check', {
+        signal: controller.signal,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -168,6 +175,7 @@ export function ChatBotPanel({ profile, language, onLanguageChange }: ChatBotPan
           source: profile ? 'authenticated' : 'anonymous',
         }),
       })
+      clearTimeout(timeoutId)
 
       const data = await res.json()
       const pestResult: PestScanResult = {
@@ -194,7 +202,9 @@ export function ChatBotPanel({ profile, language, onLanguageChange }: ChatBotPan
         pestScan: pestResult,
         imageUrl,
       }])
-    } catch {
+    } catch (err: any) {
+      clearTimeout(timeoutId)
+      if (err?.name === 'AbortError') return
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
